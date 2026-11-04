@@ -189,6 +189,43 @@ button { cursor: pointer; }
 .chip.late { background: var(--late-solid); color: var(--late-solid-fg); border-color: transparent; }
 
 /* Overdue: solid banner above the tabs, red outline on the row, red pill on the tab */
+.views { display: inline-flex; gap: 4px; padding: 4px; margin-bottom: 18px; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; max-width: 100%; }
+.views button { display: inline-flex; align-items: center; gap: 8px; border: 0; background: transparent; color: var(--muted); font-weight: 600; padding: 8px 16px; border-radius: 9px; }
+.views button:hover { color: var(--ink); }
+.views button[aria-pressed="true"] { background: var(--ink); color: var(--bg); }
+.views .n { font-size: .75rem; font-weight: 600; padding: 0 7px; border-radius: 999px; background: var(--surface-2); color: var(--muted); font-variant-numeric: tabular-nums; line-height: 1.6; }
+.views button[aria-pressed="true"] .n { background: color-mix(in srgb, var(--bg) 22%, transparent); color: var(--bg); }
+.views .n.late { background: var(--late-solid); color: var(--late-solid-fg); }
+
+.dgroups { display: grid; gap: 22px; }
+.ghead { display: flex; align-items: center; gap: 10px; margin: 0 0 8px; font-size: .8125rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.ghead .gcount { font-size: .75rem; letter-spacing: 0; padding: 0 8px; border-radius: 999px; background: var(--surface-2); border: 1px solid var(--line); line-height: 1.6; font-variant-numeric: tabular-nums; }
+.dgroup.late .ghead { color: var(--danger); }
+.dgroup.late .ghead .gcount { background: var(--late-solid); color: var(--late-solid-fg); border-color: transparent; }
+.drow {
+  display: grid; grid-template-columns: 1.75rem minmax(0, 1fr) auto; gap: 4px 12px; align-items: start;
+  padding: 14px 14px 14px 16px; border-top: 1px solid var(--line);
+  grid-template-areas: "chk main side";
+}
+.drow:first-child { border-top: 0; }
+.drow.late { background: var(--danger-bg); box-shadow: inset 0 0 0 2px var(--late-solid); }
+.drow .chk { grid-area: chk; padding-top: 2px; }
+.drow .chk input { width: 22px; height: 22px; margin: 0; accent-color: var(--ink); cursor: pointer; }
+.drow .main { grid-area: main; }
+.drow .dtext { margin: 0; font-weight: 500; overflow-wrap: anywhere; }
+.drow.isdone .dtext { color: var(--muted); text-decoration: line-through; }
+.drow .meta { align-items: center; }
+.drow .side { grid-area: side; display: flex; align-items: center; gap: 6px; }
+.ticket-link { border: 0; background: none; padding: 0; color: inherit; font: inherit; cursor: pointer; text-decoration: underline; text-decoration-color: var(--line-strong); text-underline-offset: 3px; }
+.ticket-link:hover { text-decoration-color: var(--ink); }
+.spill { font-size: .6875rem; font-weight: 700; padding: 1px 9px; border-radius: 999px; background: var(--sb); color: var(--sf); }
+.row.flash { animation: flash 1.6s ease-out 1; }
+@keyframes flash { 0%, 55% { background: var(--s-in-progress-bg); } 100% { background: transparent; } }
+@media (prefers-reduced-motion: reduce) { .row.flash { animation: none; background: var(--s-in-progress-bg); } }
+@media (max-width: 40rem) {
+  .drow { grid-template-columns: 1.75rem minmax(0, 1fr); grid-template-areas: "chk main" ". side"; }
+  .drow .side { justify-content: space-between; }
+}
 .late-bar {
   display: flex; align-items: center; gap: 8px 14px; flex-wrap: wrap;
   background: var(--late-solid); color: var(--late-solid-fg); border-radius: 10px;
@@ -310,6 +347,8 @@ dialog::backdrop { background: rgba(8, 12, 20, .55); }
     <span id="lateText"></span>
     <button type="button" id="lateToggle">Show only overdue</button>
   </div>
+
+  <div class="views" id="views" role="group" aria-label="Page"></div>
 
   <div class="tabs-scroll"><div class="tabs" id="tabs" role="tablist" aria-label="Ticket status"></div></div>
 
@@ -514,7 +553,7 @@ dialog::backdrop { background: rgba(8, 12, 20, .55); }
   }
 
   var state = load();
-  var ui = { tab: 'all', q: '', center: '', sort: 'updated', late: false };
+  var ui = { tab: 'all', q: '', center: '', sort: 'updated', late: false, view: 'tickets', dtab: 'todo' };
   var editingId = null;
   var focusAfter = null;
 
@@ -591,7 +630,9 @@ dialog::backdrop { background: rgba(8, 12, 20, .55); }
     renderSummary();
     renderLate();
     renderBanner();
+    renderViews();
     renderFilters();
+    $('sortBy').hidden = ui.view === 'deliverables';
     renderTabs();
     renderPanel();
     if (focusAfter) {
@@ -642,6 +683,7 @@ dialog::backdrop { background: rgba(8, 12, 20, .55); }
   }
 
   function renderTabs() {
+    if (ui.view === 'deliverables') return renderDTabs();
     var visible = state.tickets.filter(matchesFilters);
     var counts = { all: visible.length };
     STATUSES.forEach(function (s) { counts[s.id] = 0; });
@@ -662,6 +704,7 @@ dialog::backdrop { background: rgba(8, 12, 20, .55); }
   }
 
   function renderPanel() {
+    if (ui.view === 'deliverables') return renderDeliverables();
     var list = sorted(state.tickets.filter(function (t) {
       return matchesFilters(t) && (ui.tab === 'all' || t.status === ui.tab);
     }));
@@ -684,14 +727,114 @@ dialog::backdrop { background: rgba(8, 12, 20, .55); }
     panel.innerHTML = '<ul class="list">' + list.map(rowHTML).join('') + '</ul>';
   }
 
+  function dueChip(t) {
+    var late = lateDays(t);
+    if (t.deliverableDone) return '<span class="chip done">Complete</span>';
+    if (!t.deliverableDue) return '<span class="chip none">No due date</span>';
+    if (late) return '<span class="chip late">Overdue · ' + late + (late === 1 ? ' day' : ' days') + '</span>';
+    if (t.deliverableDue === todayStr()) return '<span class="chip soon">Due today</span>';
+    return '<span class="chip">Due ' + fmtDue(t.deliverableDue) + '</span>';
+  }
+
+  /* ---------- deliverables page ---------- */
+  function deliverableItems() {
+    return state.tickets.filter(function (t) { return t.deliverables && matchesFilters(t); });
+  }
+
+  function renderViews() {
+    var open = state.tickets.filter(function (t) { return t.deliverables && !t.deliverableDone; }).length;
+    var nLate = state.tickets.filter(function (t) { return lateDays(t) > 0; }).length;
+    $('views').innerHTML =
+      '<button type="button" data-view="tickets" aria-pressed="' + (ui.view === 'tickets') + '">Tickets <span class="n">' + state.tickets.length + '</span></button>' +
+      '<button type="button" data-view="deliverables" aria-pressed="' + (ui.view === 'deliverables') + '">Deliverables <span class="n' + (nLate ? ' late' : '') + '">' +
+        (nLate ? nLate + ' late' : open + ' open') + '</span></button>';
+  }
+
+  function renderDTabs() {
+    var items = deliverableItems();
+    var todo = items.filter(function (t) { return !t.deliverableDone; }).length;
+    var done = items.length - todo;
+    var tabs = [{ id: 'todo', label: 'To do', n: todo }, { id: 'done', label: 'Completed', n: done }];
+    $('tabs').innerHTML = tabs.map(function (s) {
+      var sel = s.id === ui.dtab;
+      return '<button class="tab" role="tab" type="button" id="tab-' + s.id + '" data-tab="' + s.id + '"' +
+        (s.id === 'done' ? ' data-status="resolved"' : '') +
+        ' aria-selected="' + sel + '" tabindex="' + (sel ? 0 : -1) + '" aria-controls="panel">' +
+        (s.id === 'done' ? '<span class="dot"></span>' : '') +
+        '<span>' + s.label + '</span><span class="count">' + s.n + '</span></button>';
+    }).join('');
+    $('panel').setAttribute('aria-labelledby', 'tab-' + ui.dtab);
+  }
+
+  function emptyHTML(title, body) {
+    return '<div class="list"><div class="empty"><strong>' + esc(title) + '</strong>' + esc(body) + '</div></div>';
+  }
+
+  function drowHTML(t) {
+    var late = lateDays(t);
+    var st = STATUS_BY_ID[t.status];
+    return '<li class="drow' + (late ? ' late' : '') + (t.deliverableDone ? ' isdone' : '') + '" data-id="' + esc(t.id) + '">' +
+      '<div class="chk"><input type="checkbox" data-act="done"' + (t.deliverableDone ? ' checked' : '') +
+        ' aria-label="Mark complete: ' + esc(t.deliverables) + '"></div>' +
+      '<div class="main"><p class="dtext">' + esc(t.deliverables) + '</p>' +
+        '<p class="meta"><button type="button" class="ticket-link num" data-act="goto" title="Show this ticket on the board">' + esc(t.number) + '</button>' +
+        '<span class="center-tag" style="--h:' + centerHue(t.center) + '">' + esc(t.center) + '</span>' +
+        '<span>Requested by <b>' + esc(t.requestor) + '</b></span>' +
+        '<span class="spill" data-status="' + t.status + '">' + st.label + '</span>' +
+        (t.sample ? '<span class="eg">Example</span>' : '') + '</p></div>' +
+      '<div class="side">' + dueChip(t) +
+        '<button class="icon-btn" type="button" data-act="edit" aria-label="Edit ' + esc(t.number) + '" title="Edit ticket">' + ICON_EDIT + '</button></div></li>';
+  }
+
+  function renderDeliverables() {
+    var panel = $('panel');
+    var items = deliverableItems();
+    if (ui.dtab === 'done') {
+      var done = items.filter(function (t) { return t.deliverableDone; })
+        .sort(function (a, b) { return new Date(b.updated) - new Date(a.updated); });
+      panel.innerHTML = done.length ? '<ul class="list">' + done.map(drowHTML).join('') + '</ul>'
+        : emptyHTML('Nothing completed yet', 'Deliverables you mark complete will be listed here.');
+      return;
+    }
+    var todo = items.filter(function (t) { return !t.deliverableDone; });
+    var today = dayNum(todayStr());
+    function dueIn(t) { return t.deliverableDue ? dayNum(t.deliverableDue) - today : null; }
+    function byDue(a, b) { return a.deliverableDue.localeCompare(b.deliverableDue); }
+    var groups = [
+      { key: 'late', title: 'Overdue', list: todo.filter(function (t) { return lateDays(t) > 0; }).sort(function (a, b) { return lateDays(b) - lateDays(a); }) },
+      { key: 'week', title: 'Due in the next 7 days', list: todo.filter(function (t) { var d = dueIn(t); return d !== null && d >= 0 && d <= 7; }).sort(byDue) },
+      { key: 'later', title: 'Later', list: todo.filter(function (t) { var d = dueIn(t); return d !== null && d > 7; }).sort(byDue) },
+      { key: 'none', title: 'No due date', list: todo.filter(function (t) { return dueIn(t) === null; }) }
+    ].filter(function (g) { return g.list.length; });
+    if (!groups.length) {
+      var any = state.tickets.some(function (t) { return t.deliverables; });
+      panel.innerHTML = !any ? emptyHTML('No deliverables yet', 'Tick Deliverables? when you add a ticket and it will be listed here.')
+        : (ui.q || ui.center || ui.late) ? emptyHTML('Nothing matches', 'Try a different search or choose all centers.')
+        : emptyHTML('All caught up', 'Every deliverable is complete.');
+      return;
+    }
+    panel.innerHTML = '<div class="dgroups">' + groups.map(function (g) {
+      return '<section class="dgroup ' + g.key + '"><h3 class="ghead"><span>' + g.title + '</span><span class="gcount">' + g.list.length + '</span></h3>' +
+        '<ul class="list">' + g.list.map(drowHTML).join('') + '</ul></section>';
+    }).join('') + '</div>';
+  }
+
+  function goToTicket(id) {
+    ui.q = ''; ui.center = ''; ui.late = false;
+    $('q').value = '';
+    ui.view = 'tickets'; ui.tab = 'all';
+    try { history.replaceState(null, '', '#all'); } catch (e) { location.hash = 'all'; }
+    render();
+    var row = document.querySelector('.row[data-id="' + id + '"]');
+    if (row) {
+      row.scrollIntoView({ block: 'center' });
+      row.classList.add('flash');
+    }
+  }
+
   function delivHTML(t) {
     if (!t.deliverables) return '';
-    var late = lateDays(t), chip;
-    if (t.deliverableDone) chip = '<span class="chip done">Complete</span>';
-    else if (!t.deliverableDue) chip = '<span class="chip none">No due date</span>';
-    else if (late) chip = '<span class="chip late">Overdue · ' + late + (late === 1 ? ' day' : ' days') + '</span>';
-    else if (t.deliverableDue === todayStr()) chip = '<span class="chip soon">Due today</span>';
-    else chip = '<span class="chip">Due ' + fmtDue(t.deliverableDue) + '</span>';
+    var late = lateDays(t), chip = dueChip(t);
     return '<div class="deliv' + (late ? ' late' : '') + '"><div class="head"><span class="lbl">Deliverables</span>' + chip +
       '<label class="done"><input type="checkbox" data-act="done"' + (t.deliverableDone ? ' checked' : '') + '> Mark complete</label></div>' +
       esc(t.deliverables) + '</div>';
@@ -748,11 +891,21 @@ dialog::backdrop { background: rgba(8, 12, 20, .55); }
     state.tickets = JSON.parse(snap);
     save(); render();
   }
-  function goTab(id) {
-    ui.tab = id;
-    if (location.hash.replace('#', '') !== id) {
-      try { history.replaceState(null, '', '#' + id); } catch (e) { location.hash = id; }
+  function setHash(h) {
+    if (location.hash.replace('#', '') !== h) {
+      try { history.replaceState(null, '', '#' + h); } catch (e) { location.hash = h; }
     }
+  }
+  function goTab(id) {
+    ui.view = 'tickets';
+    ui.tab = id;
+    setHash(id);
+    render();
+  }
+  function goDTab(id) {
+    ui.view = 'deliverables';
+    ui.dtab = id;
+    setHash(id === 'done' ? 'deliverables-done' : 'deliverables');
     render();
   }
 
@@ -973,14 +1126,23 @@ dialog::backdrop { background: rgba(8, 12, 20, .55); }
 
   $('tabs').addEventListener('click', function (e) {
     var b = e.target.closest('[data-tab]');
-    if (b) goTab(b.getAttribute('data-tab'));
+    if (!b) return;
+    if (ui.view === 'deliverables') goDTab(b.getAttribute('data-tab'));
+    else goTab(b.getAttribute('data-tab'));
+  });
+  $('views').addEventListener('click', function (e) {
+    var b = e.target.closest('[data-view]');
+    if (!b) return;
+    if (b.getAttribute('data-view') === 'deliverables') goDTab(ui.dtab);
+    else goTab(ui.tab);
   });
   $('tabs').addEventListener('keydown', function (e) {
     if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return;
-    var ids = ['all'].concat(STATUSES.map(function (s) { return s.id; }));
-    var i = ids.indexOf(ui.tab) + (e.key === 'ArrowRight' ? 1 : -1);
+    var dv = ui.view === 'deliverables';
+    var ids = dv ? ['todo', 'done'] : ['all'].concat(STATUSES.map(function (s) { return s.id; }));
+    var i = ids.indexOf(dv ? ui.dtab : ui.tab) + (e.key === 'ArrowRight' ? 1 : -1);
     i = (i + ids.length) % ids.length;
-    goTab(ids[i]);
+    if (dv) goDTab(ids[i]); else goTab(ids[i]);
     var el = $('tab-' + ids[i]);
     if (el) el.focus();
     e.preventDefault();
@@ -999,22 +1161,30 @@ dialog::backdrop { background: rgba(8, 12, 20, .55); }
     if (!b) return;
     var act = b.getAttribute('data-act');
     if (act === 'new') { openTicketForm(); return; }
-    var row = b.closest('.row');
+    var row = b.closest('[data-id]');
     if (!row) return;
     var id = row.getAttribute('data-id');
     if (act === 'edit') openTicketForm(id);
     else if (act === 'delete') deleteTicket(id);
+    else if (act === 'goto') goToTicket(id);
   });
   $('panel').addEventListener('change', function (e) {
     var act = e.target.getAttribute('data-act');
-    var id = e.target.closest('.row') && e.target.closest('.row').getAttribute('data-id');
+    var holder = e.target.closest('[data-id]');
+    var id = holder && holder.getAttribute('data-id');
     if (act === 'status') changeStatus(id, e.target.value);
     else if (act === 'done') setDone(id, e.target.checked);
   });
 
   function readHash() {
     var h = location.hash.replace('#', '');
-    ui.tab = (h === 'all' || STATUS_BY_ID[h]) ? h : 'all';
+    if (h === 'deliverables' || h === 'deliverables-done') {
+      ui.view = 'deliverables';
+      ui.dtab = h === 'deliverables-done' ? 'done' : 'todo';
+    } else {
+      ui.view = 'tickets';
+      ui.tab = (h === 'all' || STATUS_BY_ID[h]) ? h : 'all';
+    }
   }
   window.addEventListener('hashchange', function () { readHash(); render(); });
 
