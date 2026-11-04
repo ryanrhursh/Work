@@ -337,7 +337,7 @@ dialog::backdrop { background: rgba(8, 12, 20, .55); }
     <h2 id="setTitle">Centers &amp; backup</h2>
     <div class="sect" style="border-top:0;padding-top:0">
       <h3>Your six centers</h3>
-      <p class="help">Three letters each. Renaming a center updates every ticket that uses it.</p>
+      <p class="help">Two or three letters each. Renaming a center updates every ticket that uses it.</p>
       <div class="three" id="centerInputs"></div>
       <p class="f"><span class="err" id="eCenters"></span></p>
     </div>
@@ -383,7 +383,8 @@ dialog::backdrop { background: rgba(8, 12, 20, .55); }
   var STATUS_BY_ID = {};
   STATUSES.forEach(function (s) { STATUS_BY_ID[s.id] = s; });
   var KEY = 'ticketboard.v1';
-  var DEFAULT_CENTERS = ['NYC', 'BOS', 'CHI', 'DAL', 'DEN', 'SEA'];
+  var DEFAULT_CENTERS = ['CO', 'HBG', 'MDT', 'HSY', 'LNC', 'NDV'];
+  var PLACEHOLDER_CENTERS = ['NYC', 'BOS', 'CHI', 'DAL', 'DEN', 'SEA']; /* first-version defaults, migrated on load */
 
   /* ---------- storage ---------- */
   function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
@@ -393,7 +394,7 @@ dialog::backdrop { background: rgba(8, 12, 20, .55); }
       throw new Error('That does not look like a Ticket Board backup.');
     }
     var centers = data.centers.map(function (c) { return String(c).toUpperCase(); });
-    if (centers.some(function (c) { return !/^[A-Z]{3}$/.test(c); }) || new Set(centers).size !== 6) {
+    if (centers.some(function (c) { return !/^[A-Z]{2,3}$/.test(c); }) || new Set(centers).size !== 6) {
       throw new Error('The backup has invalid center codes.');
     }
     var now = new Date().toISOString();
@@ -439,7 +440,17 @@ dialog::backdrop { background: rgba(8, 12, 20, .55); }
   function load() {
     try {
       var raw = localStorage.getItem(KEY);
-      if (raw) return normalize(JSON.parse(raw));
+      if (raw) {
+        var data = normalize(JSON.parse(raw));
+        if (data.centers.join() === PLACEHOLDER_CENTERS.join()) {
+          data.tickets.forEach(function (t) {
+            var i = PLACEHOLDER_CENTERS.indexOf(t.center);
+            if (i >= 0) t.center = DEFAULT_CENTERS[i];
+          });
+          data.centers = DEFAULT_CENTERS.slice();
+        }
+        return data;
+      }
     } catch (e) { /* fall through to a fresh board */ }
     return seed();
   }
@@ -764,7 +775,7 @@ dialog::backdrop { background: rgba(8, 12, 20, .55); }
     e.preventDefault();
     var next = state.centers.map(function (_, i) { return $('c' + i).value.trim().toUpperCase(); });
     var msg = '';
-    if (next.some(function (c) { return !/^[A-Z]{3}$/.test(c); })) msg = 'Every center needs exactly three letters.';
+    if (next.some(function (c) { return !/^[A-Z]{2,3}$/.test(c); })) msg = 'Every center needs two or three letters.';
     else if (new Set(next).size !== 6) msg = 'Each center code must be different.';
     $('eCenters').textContent = msg;
     if (msg) return;

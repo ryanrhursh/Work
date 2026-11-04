@@ -2,7 +2,7 @@
 
 A single-file tracker for IT tickets. Open `index.html` in a browser; no build or server needed.
 
-- Each ticket has a number, description, center (one of six 3-letter codes) and requestor.
+- Each ticket has a number, description, center (one of six short codes) and requestor.
 - Status tabs: Open, In Progress, On Hold, Resolved, Closed (plus All), each with a live count.
 - Change status from the dropdown on any row; edit or delete with the row buttons. Every change has an Undo.
 - Search, filter by center, and sort from the bar above the list.
