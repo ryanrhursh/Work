@@ -71,6 +71,7 @@
 }
 
 * { box-sizing: border-box; }
+[hidden] { display: none !important; }
 body {
   margin: 0;
   background: var(--bg);
@@ -223,6 +224,10 @@ dialog::backdrop { background: rgba(8, 12, 20, .55); }
 }
 .f textarea { min-height: 6.5rem; resize: vertical; }
 .f .mono { font-family: var(--font-mono); }
+.f label.check { display: inline-flex; align-items: center; gap: 9px; font-size: .9375rem; cursor: pointer; width: max-content; }
+.f label.check input { width: 18px; height: 18px; padding: 0; margin: 0; accent-color: var(--ink); }
+.cnt { display: flex; justify-content: space-between; gap: 12px; font-size: .75rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+.cnt span { margin-left: auto; white-space: nowrap; }
 .f .err { margin: 0; color: var(--danger); font-size: .8125rem; min-height: 0; }
 .f input[aria-invalid="true"], .f select[aria-invalid="true"], .f textarea[aria-invalid="true"] { border-color: var(--danger); }
 .two { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
@@ -309,8 +314,12 @@ dialog::backdrop { background: rgba(8, 12, 20, .55); }
       <p class="err" id="eDesc"></p>
     </div>
     <div class="f">
-      <label for="fDeliv">Deliverables <span style="color:var(--muted);font-weight:400">(optional)</span></label>
-      <textarea id="fDeliv" style="min-height:4.5rem" placeholder="What will be delivered? One per line works well."></textarea>
+      <label class="check" for="fHasDeliv"><input type="checkbox" id="fHasDeliv"> Deliverables?</label>
+      <div class="f" id="delivBox" hidden>
+        <label for="fDeliv">Describe the deliverable</label>
+        <textarea id="fDeliv" maxlength="100" style="min-height:4rem" placeholder="What will be delivered?" aria-describedby="eDeliv"></textarea>
+        <div class="cnt"><p class="err" id="eDeliv"></p><span id="delivCount">0/100</span></div>
+      </div>
     </div>
     <div class="two">
       <div class="f">
@@ -424,11 +433,11 @@ dialog::backdrop { background: rgba(8, 12, 20, .55); }
       centers: c.slice(),
       seeded: true,
       tickets: [
-        t('INC0004131', c[5], 'Dana Whitfield', 'open', 'Needs a second monitor and a docking station for the new desk setup.', 3, 3, 'Second monitor installed\nDocking station configured'),
+        t('INC0004131', c[5], 'Dana Whitfield', 'open', 'Needs a second monitor and a docking station for the new desk setup.', 3, 3, 'Second monitor and docking station installed'),
         t('INC0004127', c[0], 'Priya Raman', 'open', 'Laptop will not join the guest Wi-Fi since the last update. Wired connection works fine.', 27, 26),
-        t('INC0004125', c[1], 'Marcus Bell', 'in-progress', 'Shared printer on the 2nd floor shows offline for the whole team. Power cycled once, still offline.', 52, 5, 'Printer back online\nQueue cleared for the team'),
+        t('INC0004125', c[1], 'Marcus Bell', 'in-progress', 'Shared printer on the 2nd floor shows offline for the whole team. Power cycled once, still offline.', 52, 5, 'Printer back online and queue cleared'),
         t('INC0004119', c[2], 'Tomás Herrera', 'in-progress', 'New hire needs accounts and a laptop ready for Monday. Waiting on HR to confirm the start date.', 96, 30),
-        t('INC0004102', c[3], 'Lena Ostrowski', 'resolved', 'Locked out of the scheduling system. Password reset and MFA re-enrolled.', 150, 70, 'Password reset\nMFA re-enrolled'),
+        t('INC0004102', c[3], 'Lena Ostrowski', 'resolved', 'Locked out of the scheduling system. Password reset and MFA re-enrolled.', 150, 70, 'Password reset and MFA re-enrolled'),
         t('INC0004098', c[4], 'Kwame Adeyemi', 'resolved', 'Monitor at desk 14 flickers. Replaced the display cable, confirmed fixed.', 220, 170)
       ]
     };
@@ -685,6 +694,16 @@ dialog::backdrop { background: rgba(8, 12, 20, .55); }
       return '<option value="' + s.id + '">' + s.label + '</option>';
     }).join('');
   }
+  function syncDeliv() {
+    var on = $('fHasDeliv').checked;
+    $('delivBox').hidden = !on;
+    $('delivCount').textContent = $('fDeliv').value.length + '/100';
+  }
+  $('fHasDeliv').addEventListener('change', function () {
+    syncDeliv();
+    if ($('fHasDeliv').checked) $('fDeliv').focus();
+  });
+  $('fDeliv').addEventListener('input', function () { syncDeliv(); setErr($('fDeliv'), 'eDeliv', ''); });
   function openTicketForm(id) {
     editingId = id || null;
     fillSelects();
@@ -695,9 +714,11 @@ dialog::backdrop { background: rgba(8, 12, 20, .55); }
     $('fCenter').value = t ? t.center : (ui.center || '');
     $('fDesc').value = t ? t.description : '';
     $('fDeliv').value = t ? t.deliverables : '';
+    $('fHasDeliv').checked = !!(t && t.deliverables);
+    syncDeliv();
     $('fReq').value = t ? t.requestor : '';
     $('fStatus').value = t ? t.status : (ui.tab !== 'all' ? ui.tab : 'open');
-    [['fNumber', 'eNumber'], ['fCenter', 'eCenter'], ['fDesc', 'eDesc'], ['fReq', 'eReq']].forEach(function (p) { setErr($(p[0]), p[1], ''); });
+    [['fNumber', 'eNumber'], ['fCenter', 'eCenter'], ['fDesc', 'eDesc'], ['fReq', 'eReq'], ['fDeliv', 'eDeliv']].forEach(function (p) { setErr($(p[0]), p[1], ''); });
     dlg.showModal();
     $('fNumber').focus();
   }
@@ -707,7 +728,8 @@ dialog::backdrop { background: rgba(8, 12, 20, .55); }
     var number = $('fNumber').value.trim();
     var center = $('fCenter').value;
     var desc = $('fDesc').value.trim();
-    var deliv = $('fDeliv').value.trim();
+    var hasDeliv = $('fHasDeliv').checked;
+    var deliv = hasDeliv ? $('fDeliv').value.trim() : '';
     var req = $('fReq').value.trim();
     var status = $('fStatus').value;
     var ok = true;
@@ -719,7 +741,8 @@ dialog::backdrop { background: rgba(8, 12, 20, .55); }
     setErr($('fCenter'), 'eCenter', center ? '' : 'Choose a center.');
     setErr($('fDesc'), 'eDesc', desc ? '' : 'Add a short description.');
     setErr($('fReq'), 'eReq', req ? '' : 'Enter the requestor.');
-    if (!number || dupe || !center || !desc || !req) ok = false;
+    setErr($('fDeliv'), 'eDeliv', !hasDeliv ? '' : !deliv ? 'Describe the deliverable, or untick the box.' : deliv.length > 100 ? 'Shorten this to 100 characters or fewer.' : '');
+    if (!number || dupe || !center || !desc || !req || (hasDeliv && (!deliv || deliv.length > 100))) ok = false;
     if (!ok) {
       var first = dlg.querySelector('[aria-invalid="true"]');
       if (first) first.focus();
