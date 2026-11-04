@@ -172,6 +172,8 @@ button { cursor: pointer; }
 }
 .main { grid-area: main; min-width: 0; }
 .desc { margin: 0; overflow-wrap: anywhere; white-space: pre-wrap; }
+.deliv { margin: 8px 0 0; padding: 7px 10px; background: var(--surface-2); border-radius: 8px; font-size: .875rem; overflow-wrap: anywhere; white-space: pre-wrap; }
+.deliv .lbl { display: block; font-size: .6875rem; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin-bottom: 1px; }
 .meta { margin: 6px 0 0; display: flex; flex-wrap: wrap; gap: 2px 14px; color: var(--muted); font-size: .8125rem; }
 .meta b { font-weight: 500; color: var(--ink); }
 .eg { font-size: .6875rem; letter-spacing: .08em; text-transform: uppercase; border: 1px dashed var(--line-strong); border-radius: 4px; padding: 0 5px; }
@@ -272,7 +274,7 @@ dialog::backdrop { background: rgba(8, 12, 20, .55); }
   <div class="tabs-scroll"><div class="tabs" id="tabs" role="tablist" aria-label="Ticket status"></div></div>
 
   <div class="bar">
-    <input class="field-in" id="q" type="search" placeholder="Search number, description, requestor" aria-label="Search tickets" autocomplete="off">
+    <input class="field-in" id="q" type="search" placeholder="Search number, description, deliverables, requestor" aria-label="Search tickets" autocomplete="off">
     <select class="field-in" id="centerFilter" aria-label="Filter by center"></select>
     <select class="field-in" id="sortBy" aria-label="Sort tickets">
       <option value="updated">Recently updated</option>
@@ -305,6 +307,10 @@ dialog::backdrop { background: rgba(8, 12, 20, .55); }
       <label for="fDesc">Description</label>
       <textarea id="fDesc" placeholder="What is the problem or request?" aria-describedby="eDesc"></textarea>
       <p class="err" id="eDesc"></p>
+    </div>
+    <div class="f">
+      <label for="fDeliv">Deliverables <span style="color:var(--muted);font-weight:400">(optional)</span></label>
+      <textarea id="fDeliv" style="min-height:4.5rem" placeholder="What will be delivered? One per line works well."></textarea>
     </div>
     <div class="two">
       <div class="f">
@@ -394,6 +400,7 @@ dialog::backdrop { background: rgba(8, 12, 20, .55); }
         id: String(t.id || uid()),
         number: String(t.number || '').trim(),
         description: String(t.description || ''),
+        deliverables: String(t.deliverables || ''),
         center: String(t.center || '').toUpperCase(),
         requestor: String(t.requestor || ''),
         status: STATUS_BY_ID[t.status] ? t.status : (LEGACY_STATUS[t.status] || 'open'),
@@ -409,19 +416,19 @@ dialog::backdrop { background: rgba(8, 12, 20, .55); }
 
   function seed() {
     var c = DEFAULT_CENTERS;
-    function t(number, center, requestor, status, description, createdH, updatedH) {
+    function t(number, center, requestor, status, description, createdH, updatedH, deliverables) {
       return { id: uid(), number: number, center: center, requestor: requestor, status: status,
-        description: description, created: ago(createdH), updated: ago(updatedH), sample: true };
+        description: description, deliverables: deliverables || '', created: ago(createdH), updated: ago(updatedH), sample: true };
     }
     return {
       centers: c.slice(),
       seeded: true,
       tickets: [
-        t('INC0004131', c[5], 'Dana Whitfield', 'open', 'Needs a second monitor and a docking station for the new desk setup.', 3, 3),
+        t('INC0004131', c[5], 'Dana Whitfield', 'open', 'Needs a second monitor and a docking station for the new desk setup.', 3, 3, 'Second monitor installed\nDocking station configured'),
         t('INC0004127', c[0], 'Priya Raman', 'open', 'Laptop will not join the guest Wi-Fi since the last update. Wired connection works fine.', 27, 26),
-        t('INC0004125', c[1], 'Marcus Bell', 'in-progress', 'Shared printer on the 2nd floor shows offline for the whole team. Power cycled once, still offline.', 52, 5),
+        t('INC0004125', c[1], 'Marcus Bell', 'in-progress', 'Shared printer on the 2nd floor shows offline for the whole team. Power cycled once, still offline.', 52, 5, 'Printer back online\nQueue cleared for the team'),
         t('INC0004119', c[2], 'Tomás Herrera', 'in-progress', 'New hire needs accounts and a laptop ready for Monday. Waiting on HR to confirm the start date.', 96, 30),
-        t('INC0004102', c[3], 'Lena Ostrowski', 'resolved', 'Locked out of the scheduling system. Password reset and MFA re-enrolled.', 150, 70),
+        t('INC0004102', c[3], 'Lena Ostrowski', 'resolved', 'Locked out of the scheduling system. Password reset and MFA re-enrolled.', 150, 70, 'Password reset\nMFA re-enrolled'),
         t('INC0004098', c[4], 'Kwame Adeyemi', 'resolved', 'Monitor at desk 14 flickers. Replaced the display cable, confirmed fixed.', 220, 170)
       ]
     };
@@ -489,7 +496,7 @@ dialog::backdrop { background: rgba(8, 12, 20, .55); }
   function matchesFilters(t) {
     if (ui.center && t.center !== ui.center) return false;
     if (ui.q) {
-      var hay = (t.number + ' ' + t.description + ' ' + t.requestor + ' ' + t.center).toLowerCase();
+      var hay = (t.number + ' ' + t.description + ' ' + t.deliverables + ' ' + t.requestor + ' ' + t.center).toLowerCase();
       if (hay.indexOf(ui.q.toLowerCase()) === -1) return false;
     }
     return true;
@@ -589,6 +596,7 @@ dialog::backdrop { background: rgba(8, 12, 20, .55); }
       '<div class="id"><span class="num">' + esc(t.number) + '</span>' +
         '<span class="center-tag" style="--h:' + centerHue(t.center) + '" title="Center">' + esc(t.center) + '</span></div>' +
       '<div class="main"><p class="desc">' + esc(t.description) + '</p>' +
+        (t.deliverables ? '<p class="deliv"><span class="lbl">Deliverables</span>' + esc(t.deliverables) + '</p>' : '') +
         '<p class="meta"><span>Requested by <b>' + esc(t.requestor) + '</b></span>' +
         '<span>Opened ' + fmtDate(t.created) + '</span>' +
         (edited ? '<span>Updated ' + fmtAgo(t.updated) + '</span>' : '') +
@@ -686,6 +694,7 @@ dialog::backdrop { background: rgba(8, 12, 20, .55); }
     $('fNumber').value = t ? t.number : '';
     $('fCenter').value = t ? t.center : (ui.center || '');
     $('fDesc').value = t ? t.description : '';
+    $('fDeliv').value = t ? t.deliverables : '';
     $('fReq').value = t ? t.requestor : '';
     $('fStatus').value = t ? t.status : (ui.tab !== 'all' ? ui.tab : 'open');
     [['fNumber', 'eNumber'], ['fCenter', 'eCenter'], ['fDesc', 'eDesc'], ['fReq', 'eReq']].forEach(function (p) { setErr($(p[0]), p[1], ''); });
@@ -698,6 +707,7 @@ dialog::backdrop { background: rgba(8, 12, 20, .55); }
     var number = $('fNumber').value.trim();
     var center = $('fCenter').value;
     var desc = $('fDesc').value.trim();
+    var deliv = $('fDeliv').value.trim();
     var req = $('fReq').value.trim();
     var status = $('fStatus').value;
     var ok = true;
@@ -722,12 +732,12 @@ dialog::backdrop { background: rgba(8, 12, 20, .55); }
     if (editingId) {
       t = findTicket(editingId);
       var oldStatus = t.status;
-      t.number = number; t.center = center; t.description = desc; t.requestor = req;
+      t.number = number; t.center = center; t.description = desc; t.deliverables = deliv; t.requestor = req;
       t.status = status; t.updated = now; t.sample = false;
       toast(oldStatus !== status ? 'Saved ' + number + ', now ' + STATUS_BY_ID[status].label : 'Saved ' + number,
         [{ label: 'Undo', fn: function () { restore(snap); } }]);
     } else {
-      t = { id: uid(), number: number, center: center, description: desc, requestor: req, status: status, created: now, updated: now, sample: false };
+      t = { id: uid(), number: number, center: center, description: desc, deliverables: deliv, requestor: req, status: status, created: now, updated: now, sample: false };
       state.tickets.push(t);
       var acts = [{ label: 'Undo', fn: function () { restore(snap); } }];
       if (ui.tab !== 'all' && ui.tab !== status) acts.push({ label: 'Go to ' + STATUS_BY_ID[status].label, fn: function () { goTab(status); } });
