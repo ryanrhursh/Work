@@ -346,6 +346,28 @@ dialog::backdrop { background: rgba(8, 12, 20, .55); }
   .brow.bad { margin: 0 -8px; padding: 12px 8px; }
 }
 
+/* Bulk edit shares the Bulk add grid, with a status column and a Done box */
+#editDlg { width: min(80rem, calc(100vw - 32px)); }
+.eset { display: flex; gap: 14px; flex-wrap: wrap; }
+.eset .f { min-width: 12rem; }
+.bhead.ehead, .brow.erow {
+  grid-template-columns: 8.5rem 7.75rem 5.5rem 9rem minmax(0, 1.4fr) minmax(0, 1fr) 8.75rem 3rem;
+}
+.brow.chg { background: color-mix(in srgb, var(--focus) 9%, transparent); margin: 0 -10px; padding: 5px 10px; border-radius: 8px; border-top-color: transparent; }
+.brow.bad { background: var(--danger-bg); }
+.bc input[type="checkbox"] { width: 20px; height: 20px; padding: 0; margin: 8px 0 0; accent-color: var(--ink); cursor: pointer; }
+.bc.c-done { display: block; }
+@media (max-width: 64rem) {
+  .bhead.ehead { display: none; }
+  .brow.erow {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-areas: "num sta" "ctr req" "desc desc" "dlv dlv" "due done" "err err";
+  }
+  .brow.erow .c-status { grid-area: sta; } .brow.erow .c-done { grid-area: done; }
+  .brow.erow .c-center { grid-area: ctr; }
+  .brow.chg { margin: 0 -8px; padding: 12px 8px; }
+}
+
 /* Toast */
 .toast {
   position: fixed; left: 50%; transform: translateX(-50%);
@@ -376,6 +398,10 @@ dialog::backdrop { background: rgba(8, 12, 20, .55); }
       <button class="btn" id="bulkBtn" type="button">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h10M4 12h10M4 18h6M18 14v6M15 17h6"/></svg>
         Bulk add
+      </button>
+      <button class="btn" id="editAllBtn" type="button">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h8M4 12h6M4 18h5M14 20l1-4 5-5a1.9 1.9 0 0 0-3-3l-5 5-3 7z" transform="translate(0 -1) scale(.96)"/></svg>
+        Bulk edit
       </button>
       <button class="btn primary" id="newBtn" type="button">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
@@ -499,13 +525,40 @@ dialog::backdrop { background: rgba(8, 12, 20, .55); }
   </form>
 </dialog>
 
+<dialog id="editDlg" aria-labelledby="editTitle">
+  <form class="dlg" id="editForm" novalidate>
+    <div>
+      <h2 id="editTitle">Bulk edit tickets</h2>
+      <p class="help" style="margin-top:6px" id="editScope"></p>
+    </div>
+    <div class="eset">
+      <div class="f"><label for="eSetStatus">Set status for every row</label>
+        <select id="eSetStatus"></select></div>
+      <div class="f"><label for="eSetCenter">Set center for every row</label>
+        <select id="eSetCenter"></select></div>
+    </div>
+    <div>
+      <div class="bhead ehead" aria-hidden="true"><span>Ticket #</span><span>Status</span><span>Center</span><span>Requestor</span><span>Description</span><span>Deliverable <i>(100 max)</i></span><span>Complete by</span><span>Done</span></div>
+      <div id="editRows"></div>
+    </div>
+    <div class="bfoot">
+      <span class="bsum" id="eSummary" role="status"></span>
+      <div class="foot" style="margin:0">
+        <button class="btn" type="button" id="eCancel">Cancel</button>
+        <button class="btn primary" type="submit" id="eSave">Save changes</button>
+      </div>
+    </div>
+  </form>
+</dialog>
+
 <dialog id="setDlg" aria-labelledby="setTitle">
   <form class="dlg" id="setForm" novalidate>
     <h2 id="setTitle">Centers &amp; backup</h2>
     <div class="sect" style="border-top:0;padding-top:0">
-      <h3>Your six centers</h3>
-      <p class="help">Two or three letters each. Renaming a center updates every ticket that uses it.</p>
+      <h3>Your centers</h3>
+      <p class="help">Two or three letters each. Renaming a center updates every ticket that uses it. You can have up to 12.</p>
       <div class="three" id="centerInputs"></div>
+      <div class="foot" style="margin:0;justify-content:flex-start"><button class="btn" type="button" id="addCenter">+ Add another center</button></div>
       <p class="f"><span class="err" id="eCenters"></span></p>
     </div>
     <div class="sect">
@@ -549,6 +602,7 @@ dialog::backdrop { background: rgba(8, 12, 20, .55); }
   var STATUS_BY_ID = {};
   STATUSES.forEach(function (s) { STATUS_BY_ID[s.id] = s; });
   var KEY = 'ticketboard.v1';
+  var MAX_CENTERS = 12;
   var DEFAULT_CENTERS = ['CO', 'HBG', 'MDT', 'HSY', 'LNC', 'NDV'];
   var PLACEHOLDER_CENTERS = ['NYC', 'BOS', 'CHI', 'DAL', 'DEN', 'SEA']; /* first-version defaults, migrated on load */
 
@@ -556,11 +610,11 @@ dialog::backdrop { background: rgba(8, 12, 20, .55); }
   function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
 
   function normalize(data) {
-    if (!data || !Array.isArray(data.tickets) || !Array.isArray(data.centers) || data.centers.length !== 6) {
+    if (!data || !Array.isArray(data.tickets) || !Array.isArray(data.centers) || data.centers.length < 1 || data.centers.length > MAX_CENTERS) {
       throw new Error('That does not look like a Ticket Board backup.');
     }
     var centers = data.centers.map(function (c) { return String(c).toUpperCase(); });
-    if (centers.some(function (c) { return !/^[A-Z]{2,3}$/.test(c); }) || new Set(centers).size !== 6) {
+    if (centers.some(function (c) { return !/^[A-Z]{2,3}$/.test(c); }) || new Set(centers).size !== centers.length) {
       throw new Error('The backup has invalid center codes.');
     }
     var now = new Date().toISOString();
@@ -642,7 +696,8 @@ dialog::backdrop { background: rgba(8, 12, 20, .55); }
   }
   function centerHue(code) {
     var i = state.centers.indexOf(code);
-    return i < 0 ? 215 : (i * 60 + 15) % 360;
+    if (i < 0) return 215;
+    return i < 6 ? i * 60 + 15 : ((i - 6) * 60 + 45) % 360; /* the first six keep their colours; later ones sit between them */
   }
   function pad(n) { return (n < 10 ? '0' : '') + n; }
   function dateStr(d) { return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()); }
@@ -1317,16 +1372,227 @@ dialog::backdrop { background: rgba(8, 12, 20, .55); }
     toast('Added ' + rows.length + (rows.length === 1 ? ' ticket' : ' tickets') + ' as ' + STATUS_BY_ID[status].label, acts);
   });
 
+  /* ---------- bulk edit ---------- */
+  var edlg = $('editDlg');
+  var editOrig = {};
+  var discardArmed = false;
+  var ECOLS = ['number', 'status', 'center', 'requestor', 'description', 'deliverable', 'due', 'done'];
+
+  /* The tickets the current page is showing, in the order shown. */
+  function shownTickets() {
+    if (ui.view === 'deliverables') {
+      return deliverableItems()
+        .filter(function (t) { return ui.dtab === 'done' ? t.deliverableDone : !t.deliverableDone; })
+        .sort(function (a, b) { return (a.deliverableDue || '9999').localeCompare(b.deliverableDue || '9999'); });
+    }
+    return sorted(state.tickets.filter(function (t) {
+      return matchesFilters(t) && (ui.tab === 'all' || t.status === ui.tab);
+    }));
+  }
+  function shownLabel() {
+    var filtered = ui.q || ui.center || ui.late;
+    if (ui.view === 'deliverables') return 'Deliverables, ' + (ui.dtab === 'done' ? 'Completed' : 'To do') + (filtered ? ', filtered' : '');
+    return (ui.tab === 'all' ? 'All' : STATUS_BY_ID[ui.tab].label) + (filtered ? ', filtered' : '');
+  }
+
+  function origVals(t) {
+    return { number: t.number, status: t.status, center: t.center, requestor: t.requestor,
+      description: t.description.trim(), deliverable: t.deliverables, due: t.deliverableDue, done: !!t.deliverableDone };
+  }
+  function readEditRow(row) {
+    var v = {};
+    ECOLS.forEach(function (c) {
+      var el = bcell(row, c);
+      v[c] = c === 'done' ? el.checked : el.value.trim();
+    });
+    return v;
+  }
+  function rowChanged(row) {
+    var o = origVals(editOrig[row.getAttribute('data-id')]), v = readEditRow(row);
+    return ECOLS.some(function (c) { return o[c] !== v[c]; });
+  }
+  function editRowEls() { return [].slice.call($('editRows').children); }
+
+  function editRowFor(t) {
+    var statusOpts = STATUSES.map(function (st) { return '<option value="' + st.id + '">' + st.label + '</option>'; }).join('');
+    var centers = state.centers.indexOf(t.center) >= 0 ? state.centers : state.centers.concat([t.center]);
+    var centerOpts = centers.map(function (c) { return '<option value="' + esc(c) + '">' + esc(c) + '</option>'; }).join('');
+    var div = document.createElement('div');
+    div.className = 'brow erow';
+    div.setAttribute('data-id', t.id);
+    div.innerHTML =
+      '<label class="bc c-number"><span class="bl">Ticket #</span><input class="mono" data-col="number" autocomplete="off"></label>' +
+      '<label class="bc c-status"><span class="bl">Status</span><select data-col="status">' + statusOpts + '</select></label>' +
+      '<label class="bc c-center"><span class="bl">Center</span><select data-col="center">' + centerOpts + '</select></label>' +
+      '<label class="bc c-requestor"><span class="bl">Requestor</span><input data-col="requestor" autocomplete="off"></label>' +
+      '<label class="bc c-description"><span class="bl">Description</span><textarea rows="1" data-col="description"></textarea></label>' +
+      '<label class="bc c-deliverable"><span class="bl">Deliverable (100 characters max)</span><textarea rows="1" maxlength="100" data-col="deliverable" placeholder="None"></textarea></label>' +
+      '<label class="bc c-due"><span class="bl">Complete by</span><input type="date" data-col="due"></label>' +
+      '<label class="bc c-done"><span class="bl">Deliverable done</span><input type="checkbox" data-col="done"></label>' +
+      '<p class="berr" hidden></p>';
+    var o = origVals(t);
+    ECOLS.forEach(function (c) {
+      var el = bcell(div, c);
+      if (c === 'done') el.checked = o.done; else el.value = o[c];
+    });
+    return div;
+  }
+
+  function updateEditSummary() {
+    var n = 0;
+    editRowEls().forEach(function (row) {
+      var ch = rowChanged(row);
+      row.classList.toggle('chg', ch);
+      if (ch) n++;
+    });
+    var sum = $('eSummary');
+    sum.classList.remove('err');
+    sum.textContent = n === 0 ? 'No changes yet' : n + (n === 1 ? ' ticket changed' : ' tickets changed');
+    $('eSave').textContent = n > 1 ? 'Save ' + n + ' changes' : 'Save changes';
+    $('eSave').disabled = n === 0;
+    $('eCancel').textContent = 'Cancel';
+    discardArmed = false;
+    return n;
+  }
+
+  function openEdit() {
+    var list = shownTickets();
+    if (!list.length) { toast('There are no tickets on this page to edit.', []); return; }
+    editOrig = {};
+    $('editRows').innerHTML = '';
+    list.forEach(function (t) {
+      editOrig[t.id] = JSON.parse(JSON.stringify(t));
+      $('editRows').appendChild(editRowFor(t));
+    });
+    $('editScope').textContent = 'Editing the ' + list.length + (list.length === 1 ? ' ticket' : ' tickets') + ' shown now (' + shownLabel() +
+      '). Change any cell and save. Only rows you change are updated. To edit everything, go to the All tab with no filters.';
+    $('eSetStatus').innerHTML = '<option value="">Leave as is</option>' + STATUSES.map(function (st) { return '<option value="' + st.id + '">' + st.label + '</option>'; }).join('');
+    $('eSetCenter').innerHTML = '<option value="">Leave as is</option>' + state.centers.map(function (c) { return '<option value="' + c + '">' + c + '</option>'; }).join('');
+    updateEditSummary();
+    edlg.showModal();
+    editRowEls().forEach(function (r) { grow(bcell(r, 'description')); grow(bcell(r, 'deliverable')); });
+    bcell(editRowEls()[0], 'number').focus();
+  }
+
+  function closeEdit() { edlg.close(); }
+  function tryCloseEdit() {
+    if (updateEditSummaryKeepArm() && !discardArmed) {
+      discardArmed = true;
+      var sum = $('eSummary');
+      sum.classList.add('err');
+      sum.textContent = 'You have unsaved changes. Press again to discard them.';
+      $('eCancel').textContent = 'Discard changes';
+      return;
+    }
+    closeEdit();
+  }
+  function updateEditSummaryKeepArm() { return editRowEls().some(rowChanged); }
+
+  $('editAllBtn').addEventListener('click', openEdit);
+  $('eCancel').addEventListener('click', tryCloseEdit);
+  edlg.addEventListener('cancel', function (e) { e.preventDefault(); tryCloseEdit(); });
+
+  $('editRows').addEventListener('input', function (e) { grow(e.target); updateEditSummary(); });
+  $('editRows').addEventListener('keydown', function (e) {
+    if (e.key !== 'Enter' || e.shiftKey || !e.target.matches('input:not([type="checkbox"]), textarea')) return;
+    e.preventDefault();
+    var rows = editRowEls();
+    var next = rows[rows.indexOf(e.target.closest('.brow')) + 1];
+    if (next) bcell(next, e.target.getAttribute('data-col')).focus();
+  });
+  /* Set one value on every row, then drop back to "Leave as is". */
+  ['Status', 'Center'].forEach(function (name) {
+    $('eSet' + name).addEventListener('change', function (e) {
+      var v = e.target.value;
+      if (!v) return;
+      editRowEls().forEach(function (row) { bcell(row, name.toLowerCase()).value = v; });
+      e.target.value = '';
+      updateEditSummary();
+    });
+  });
+
+  $('editForm').addEventListener('submit', function (e) {
+    e.preventDefault();
+    var rows = editRowEls();
+    if (!rows.length) return;
+    /* Count final ticket numbers across the whole board so swaps and clashes are both caught. */
+    var count = {};
+    state.tickets.forEach(function (t) { if (!editOrig[t.id]) { var k = t.number.toLowerCase(); count[k] = (count[k] || 0) + 1; } });
+    rows.forEach(function (row) { var k = bcell(row, 'number').value.trim().toLowerCase(); if (k) count[k] = (count[k] || 0) + 1; });
+    var updates = [], badCount = 0, firstBad = null;
+    rows.forEach(function (row) {
+      var msg = row.querySelector('.berr'), errs = [], bad = {};
+      ECOLS.forEach(function (c) { bcell(row, c).removeAttribute('aria-invalid'); });
+      msg.hidden = true; row.classList.remove('bad');
+      if (!rowChanged(row)) return;
+      var v = readEditRow(row);
+      if (!v.number) { errs.push('Ticket number is missing'); bad.number = 1; }
+      else if (count[v.number.toLowerCase()] > 1) { errs.push('Ticket number ' + v.number + ' is used more than once'); bad.number = 1; }
+      if (!v.center) { errs.push('Choose a center'); bad.center = 1; }
+      if (!v.requestor) { errs.push('Requestor is missing'); bad.requestor = 1; }
+      if (!v.description) { errs.push('Description is missing'); bad.description = 1; }
+      if (v.deliverable && !v.due) { errs.push('Add a complete-by date for the deliverable'); bad.due = 1; }
+      if (!v.deliverable && v.due) { errs.push('Add the deliverable description, or clear the date'); bad.deliverable = 1; }
+      if (errs.length) {
+        badCount++;
+        row.classList.add('bad');
+        msg.textContent = errs.join('. ') + '.';
+        msg.hidden = false;
+        Object.keys(bad).forEach(function (c) { bcell(row, c).setAttribute('aria-invalid', 'true'); });
+        if (!firstBad) firstBad = bcell(row, Object.keys(bad)[0]);
+      } else updates.push({ id: row.getAttribute('data-id'), v: v });
+    });
+    if (badCount) {
+      var sum = $('eSummary');
+      sum.classList.add('err');
+      sum.textContent = 'Fix ' + badCount + (badCount === 1 ? ' row' : ' rows') + ' to continue. Nothing has been saved yet.';
+      if (firstBad) firstBad.focus();
+      return;
+    }
+    if (!updates.length) return;
+    var snap = snapshot();
+    var now = new Date().toISOString();
+    updates.forEach(function (u) {
+      var t = findTicket(u.id), v = u.v;
+      t.number = v.number; t.status = v.status; t.center = v.center; t.requestor = v.requestor;
+      t.description = v.description; t.deliverables = v.deliverable;
+      t.deliverableDue = v.deliverable ? v.due : '';
+      t.deliverableDone = v.deliverable ? v.done : false;
+      t.updated = now; t.sample = false;
+    });
+    save();
+    discardArmed = true;
+    closeEdit();
+    render();
+    toast('Updated ' + updates.length + (updates.length === 1 ? ' ticket' : ' tickets'), [{ label: 'Undo', fn: function () { restore(snap); } }]);
+  });
+
   /* ---------- settings ---------- */
   var sdlg = $('setDlg');
   function buildExport() {
     return JSON.stringify({ app: 'ticket-board', version: 1, centers: state.centers, tickets: state.tickets });
   }
+  function addCenterInput(value) {
+    var box = $('centerInputs');
+    var i = box.children.length;
+    var d = document.createElement('div');
+    d.className = 'f';
+    d.innerHTML = '<label for="c' + i + '">Center ' + (i + 1) + '</label>' +
+      '<input id="c' + i + '" class="mono" maxlength="3" autocomplete="off" placeholder="ABC">';
+    d.querySelector('input').value = value || '';
+    box.appendChild(d);
+    return d.querySelector('input');
+  }
+  $('addCenter').addEventListener('click', function () {
+    var box = $('centerInputs');
+    if (box.children.length >= MAX_CENTERS) return;
+    addCenterInput('').focus();
+    $('addCenter').hidden = box.children.length >= MAX_CENTERS;
+  });
   function openSettings() {
-    $('centerInputs').innerHTML = state.centers.map(function (c, i) {
-      return '<div class="f"><label for="c' + i + '">Center ' + (i + 1) + '</label>' +
-        '<input id="c' + i + '" class="mono" maxlength="3" autocomplete="off" value="' + c + '"></div>';
-    }).join('');
+    $('centerInputs').innerHTML = '';
+    state.centers.forEach(function (c) { addCenterInput(c); });
+    $('addCenter').hidden = state.centers.length >= MAX_CENTERS;
     $('eCenters').textContent = '';
     $('exportBox').value = buildExport();
     $('importBox').value = '';
@@ -1342,10 +1608,16 @@ dialog::backdrop { background: rgba(8, 12, 20, .55); }
   });
   $('setForm').addEventListener('submit', function (e) {
     e.preventDefault();
-    var next = state.centers.map(function (_, i) { return $('c' + i).value.trim().toUpperCase(); });
+    var oldN = state.centers.length;
+    var next = [];
+    [].slice.call($('centerInputs').querySelectorAll('input')).forEach(function (inp, i) {
+      var v = inp.value.trim().toUpperCase();
+      if (i >= oldN && !v) return; /* an added slot left blank is dropped */
+      next.push(v);
+    });
     var msg = '';
     if (next.some(function (c) { return !/^[A-Z]{2,3}$/.test(c); })) msg = 'Every center needs two or three letters.';
-    else if (new Set(next).size !== 6) msg = 'Each center code must be different.';
+    else if (new Set(next).size !== next.length) msg = 'Each center code must be different.';
     $('eCenters').textContent = msg;
     if (msg) return;
     var map = {};
@@ -1356,7 +1628,7 @@ dialog::backdrop { background: rgba(8, 12, 20, .55); }
     save();
     sdlg.close();
     render();
-    toast('Centers saved', []);
+    toast(next.length > oldN ? 'Centers saved, ' + (next.length - oldN) + ' added' : 'Centers saved', []);
   });
   $('setCancel').addEventListener('click', function () { sdlg.close(); });
   $('copyBtn').addEventListener('click', function () {
