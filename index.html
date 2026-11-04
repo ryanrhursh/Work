@@ -20,6 +20,8 @@
   --focus: #2f6fed;
   --danger: #b42318;
   --danger-bg: #fdecea;
+  --late-solid: #c3261a;
+  --late-solid-fg: #ffffff;
   --shadow: 0 1px 2px rgba(20, 28, 43, .06), 0 10px 28px -14px rgba(20, 28, 43, .22);
   --tag-bg-l: 92%;
   --tag-fg-l: 30%;
@@ -41,6 +43,7 @@
     --focus: #7aa5ff;
     --danger: #ff9a90;
     --danger-bg: #3b1b19;
+    --late-solid: #d9382b;
     --shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 10px 28px -14px rgba(0, 0, 0, .7);
     --tag-bg-l: 22%;
     --tag-fg-l: 80%;
@@ -61,6 +64,7 @@
   --focus: #7aa5ff;
   --danger: #ff9a90;
   --danger-bg: #3b1b19;
+  --late-solid: #d9382b;
   --shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 10px 28px -14px rgba(0, 0, 0, .7);
   --tag-bg-l: 22%;
   --tag-fg-l: 80%;
@@ -173,8 +177,32 @@ button { cursor: pointer; }
 }
 .main { grid-area: main; min-width: 0; }
 .desc { margin: 0; overflow-wrap: anywhere; white-space: pre-wrap; }
-.deliv { margin: 8px 0 0; padding: 7px 10px; background: var(--surface-2); border-radius: 8px; font-size: .875rem; overflow-wrap: anywhere; white-space: pre-wrap; }
-.deliv .lbl { display: block; font-size: .6875rem; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin-bottom: 1px; }
+.deliv { margin: 8px 0 0; padding: 8px 10px; background: var(--surface-2); border: 1px solid transparent; border-radius: 8px; font-size: .875rem; overflow-wrap: anywhere; white-space: pre-wrap; }
+.deliv .head { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 10px; margin-bottom: 3px; white-space: normal; }
+.deliv .lbl { font-size: .6875rem; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.deliv label.done { margin-left: auto; display: inline-flex; align-items: center; gap: 6px; font-size: .8125rem; color: var(--muted); cursor: pointer; }
+.deliv label.done input { width: 16px; height: 16px; margin: 0; accent-color: var(--ink); }
+.chip { font-size: .6875rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; padding: 1px 9px; border-radius: 999px; background: var(--surface); border: 1px solid var(--line-strong); color: var(--ink); white-space: nowrap; }
+.chip.none { border-style: dashed; color: var(--muted); }
+.chip.soon { background: var(--s-in-progress-bg); color: var(--s-in-progress-fg); border-color: transparent; }
+.chip.done { background: var(--s-resolved-bg); color: var(--s-resolved-fg); border-color: transparent; }
+.chip.late { background: var(--late-solid); color: var(--late-solid-fg); border-color: transparent; }
+
+/* Overdue: solid banner above the tabs, red outline on the row, red pill on the tab */
+.late-bar {
+  display: flex; align-items: center; gap: 8px 14px; flex-wrap: wrap;
+  background: var(--late-solid); color: var(--late-solid-fg); border-radius: 10px;
+  padding: 12px 16px; margin-bottom: 18px; font-weight: 500;
+  box-shadow: 0 8px 22px -10px var(--late-solid);
+}
+.late-bar svg { width: 22px; height: 22px; flex: none; }
+.late-bar strong { font-weight: 700; letter-spacing: .02em; }
+.late-bar .nums { font-family: var(--font-mono); font-size: .8125rem; }
+.late-bar button { margin-left: auto; background: var(--late-solid-fg); color: var(--late-solid); border: 0; border-radius: 8px; padding: 6px 12px; font-weight: 700; }
+.row.late, .row.late:hover { background: var(--danger-bg); box-shadow: inset 0 0 0 2px var(--late-solid); }
+.row.late .deliv { background: var(--surface); border-color: var(--late-solid); }
+.tab .late-pill { background: var(--late-solid); color: var(--late-solid-fg); font-size: .6875rem; font-weight: 700; padding: 0 8px; border-radius: 999px; line-height: 1.7; }
+.top .sub .latetxt { color: var(--danger); font-weight: 600; }
 .meta { margin: 6px 0 0; display: flex; flex-wrap: wrap; gap: 2px 14px; color: var(--muted); font-size: .8125rem; }
 .meta b { font-weight: 500; color: var(--ink); }
 .eg { font-size: .6875rem; letter-spacing: .08em; text-transform: uppercase; border: 1px dashed var(--line-strong); border-radius: 4px; padding: 0 5px; }
@@ -228,6 +256,7 @@ dialog::backdrop { background: rgba(8, 12, 20, .55); }
 .f label.check input { width: 18px; height: 18px; padding: 0; margin: 0; accent-color: var(--ink); }
 .cnt { display: flex; justify-content: space-between; gap: 12px; font-size: .75rem; color: var(--muted); font-variant-numeric: tabular-nums; }
 .cnt span { margin-left: auto; white-space: nowrap; }
+.f input[type="date"] { min-height: 2.5rem; }
 .f .err { margin: 0; color: var(--danger); font-size: .8125rem; min-height: 0; }
 .f input[aria-invalid="true"], .f select[aria-invalid="true"], .f textarea[aria-invalid="true"] { border-color: var(--danger); }
 .two { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
@@ -276,6 +305,12 @@ dialog::backdrop { background: rgba(8, 12, 20, .55); }
     <button class="btn" id="clearExamples" type="button">Remove examples</button>
   </div>
 
+  <div class="late-bar" id="lateBar" role="alert" hidden>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l10 18H2L12 3z"/><path d="M12 10v5M12 18h0"/></svg>
+    <span id="lateText"></span>
+    <button type="button" id="lateToggle">Show only overdue</button>
+  </div>
+
   <div class="tabs-scroll"><div class="tabs" id="tabs" role="tablist" aria-label="Ticket status"></div></div>
 
   <div class="bar">
@@ -319,6 +354,16 @@ dialog::backdrop { background: rgba(8, 12, 20, .55); }
         <label for="fDeliv">Describe the deliverable</label>
         <textarea id="fDeliv" maxlength="100" style="min-height:4rem" placeholder="What will be delivered?" aria-describedby="eDeliv"></textarea>
         <div class="cnt"><p class="err" id="eDeliv"></p><span id="delivCount">0/100</span></div>
+        <div class="two">
+          <div class="f">
+            <label for="fDue">Complete by</label>
+            <input type="date" id="fDue" aria-describedby="eDue">
+            <p class="err" id="eDue"></p>
+          </div>
+          <div class="f" id="doneWrap" hidden style="align-self:start;padding-top:1.6rem">
+            <label class="check" for="fDone"><input type="checkbox" id="fDone"> Deliverable complete</label>
+          </div>
+        </div>
       </div>
     </div>
     <div class="two">
@@ -410,6 +455,8 @@ dialog::backdrop { background: rgba(8, 12, 20, .55); }
         number: String(t.number || '').trim(),
         description: String(t.description || ''),
         deliverables: String(t.deliverables || ''),
+        deliverableDue: t.deliverables && /^\d{4}-\d{2}-\d{2}$/.test(t.deliverableDue || '') ? t.deliverableDue : '',
+        deliverableDone: !!(t.deliverables && t.deliverableDone),
         center: String(t.center || '').toUpperCase(),
         requestor: String(t.requestor || ''),
         status: STATUS_BY_ID[t.status] ? t.status : (LEGACY_STATUS[t.status] || 'open'),
@@ -425,19 +472,19 @@ dialog::backdrop { background: rgba(8, 12, 20, .55); }
 
   function seed() {
     var c = DEFAULT_CENTERS;
-    function t(number, center, requestor, status, description, createdH, updatedH, deliverables) {
+    function t(number, center, requestor, status, description, createdH, updatedH, deliverables, due, done) {
       return { id: uid(), number: number, center: center, requestor: requestor, status: status,
-        description: description, deliverables: deliverables || '', created: ago(createdH), updated: ago(updatedH), sample: true };
+        description: description, deliverables: deliverables || '', deliverableDue: deliverables ? due : '', deliverableDone: !!done, created: ago(createdH), updated: ago(updatedH), sample: true };
     }
     return {
       centers: c.slice(),
       seeded: true,
       tickets: [
-        t('INC0004131', c[5], 'Dana Whitfield', 'open', 'Needs a second monitor and a docking station for the new desk setup.', 3, 3, 'Second monitor and docking station installed'),
+        t('INC0004131', c[5], 'Dana Whitfield', 'open', 'Needs a second monitor and a docking station for the new desk setup.', 3, 3, 'Second monitor and docking station installed', offsetDay(2), false),
         t('INC0004127', c[0], 'Priya Raman', 'open', 'Laptop will not join the guest Wi-Fi since the last update. Wired connection works fine.', 27, 26),
-        t('INC0004125', c[1], 'Marcus Bell', 'in-progress', 'Shared printer on the 2nd floor shows offline for the whole team. Power cycled once, still offline.', 52, 5, 'Printer back online and queue cleared'),
+        t('INC0004125', c[1], 'Marcus Bell', 'in-progress', 'Shared printer on the 2nd floor shows offline for the whole team. Power cycled once, still offline.', 52, 5, 'Printer back online and queue cleared', offsetDay(-3), false),
         t('INC0004119', c[2], 'Tomás Herrera', 'in-progress', 'New hire needs accounts and a laptop ready for Monday. Waiting on HR to confirm the start date.', 96, 30),
-        t('INC0004102', c[3], 'Lena Ostrowski', 'resolved', 'Locked out of the scheduling system. Password reset and MFA re-enrolled.', 150, 70, 'Password reset and MFA re-enrolled'),
+        t('INC0004102', c[3], 'Lena Ostrowski', 'resolved', 'Locked out of the scheduling system. Password reset and MFA re-enrolled.', 150, 70, 'Password reset and MFA re-enrolled', offsetDay(-5), true),
         t('INC0004098', c[4], 'Kwame Adeyemi', 'resolved', 'Monitor at desk 14 flickers. Replaced the display cable, confirmed fixed.', 220, 170)
       ]
     };
@@ -467,7 +514,7 @@ dialog::backdrop { background: rgba(8, 12, 20, .55); }
   }
 
   var state = load();
-  var ui = { tab: 'all', q: '', center: '', sort: 'updated' };
+  var ui = { tab: 'all', q: '', center: '', sort: 'updated', late: false };
   var editingId = null;
   var focusAfter = null;
 
@@ -481,6 +528,23 @@ dialog::backdrop { background: rgba(8, 12, 20, .55); }
   function centerHue(code) {
     var i = state.centers.indexOf(code);
     return i < 0 ? 215 : (i * 60 + 15) % 360;
+  }
+  function pad(n) { return (n < 10 ? '0' : '') + n; }
+  function dateStr(d) { return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()); }
+  function todayStr() { return dateStr(new Date()); }
+  function offsetDay(n) { var d = new Date(); d.setDate(d.getDate() + n); return dateStr(d); }
+  function dayNum(str) { var p = str.split('-'); return Date.UTC(+p[0], +p[1] - 1, +p[2]) / 86400000; }
+  function fmtDue(str) {
+    var p = str.split('-'), d = new Date(+p[0], +p[1] - 1, +p[2]);
+    var opts = { month: 'short', day: 'numeric' };
+    if (d.getFullYear() !== new Date().getFullYear()) opts.year = 'numeric';
+    return d.toLocaleDateString(undefined, opts);
+  }
+  /* Days past the due date for an unfinished deliverable; 0 when not overdue. */
+  function lateDays(t) {
+    if (!t.deliverables || t.deliverableDone || !t.deliverableDue) return 0;
+    var d = dayNum(todayStr()) - dayNum(t.deliverableDue);
+    return d > 0 ? d : 0;
   }
   function fmtDate(iso) {
     var d = new Date(iso), now = new Date();
@@ -504,6 +568,7 @@ dialog::backdrop { background: rgba(8, 12, 20, .55); }
   /* ---------- filtering ---------- */
   function matchesFilters(t) {
     if (ui.center && t.center !== ui.center) return false;
+    if (ui.late && !lateDays(t)) return false;
     if (ui.q) {
       var hay = (t.number + ' ' + t.description + ' ' + t.deliverables + ' ' + t.requestor + ' ' + t.center).toLowerCase();
       if (hay.indexOf(ui.q.toLowerCase()) === -1) return false;
@@ -524,6 +589,7 @@ dialog::backdrop { background: rgba(8, 12, 20, .55); }
   /* ---------- render ---------- */
   function render() {
     renderSummary();
+    renderLate();
     renderBanner();
     renderFilters();
     renderTabs();
@@ -535,10 +601,29 @@ dialog::backdrop { background: rgba(8, 12, 20, .55); }
     }
   }
 
+  function renderLate() {
+    var late = state.tickets.filter(function (t) { return lateDays(t) > 0; })
+      .sort(function (a, b) { return lateDays(b) - lateDays(a); });
+    var bar = $('lateBar');
+    if (!late.length) {
+      ui.late = false; bar.hidden = true; document.title = 'Ticket Board';
+      return;
+    }
+    var shown = late.slice(0, 4).map(function (t) { return esc(t.number); }).join(', ');
+    if (late.length > 4) shown += ' +' + (late.length - 4) + ' more';
+    $('lateText').innerHTML = '<strong>' + late.length + (late.length === 1 ? ' overdue deliverable' : ' overdue deliverables') +
+      '</strong> · <span class="nums">' + shown + '</span>';
+    $('lateToggle').textContent = ui.late ? 'Show all tickets' : 'Show only overdue';
+    bar.hidden = false;
+    document.title = '(' + late.length + ' overdue) Ticket Board';
+  }
+
   function renderSummary() {
     var active = state.tickets.filter(function (t) { return t.status !== 'resolved'; }).length;
     var total = state.tickets.length;
+    var nLate = state.tickets.filter(function (t) { return lateDays(t) > 0; }).length;
     $('summary').innerHTML = '<b>' + active + '</b> active · <b>' + total + '</b> total' +
+      (nLate ? ' · <span class="latetxt">' + nLate + ' overdue</span>' : '') +
       (storageOK ? '' : ' · <span style="color:var(--danger)">not saving, browser storage is blocked</span>');
   }
 
@@ -560,7 +645,9 @@ dialog::backdrop { background: rgba(8, 12, 20, .55); }
     var visible = state.tickets.filter(matchesFilters);
     var counts = { all: visible.length };
     STATUSES.forEach(function (s) { counts[s.id] = 0; });
-    visible.forEach(function (t) { counts[t.status]++; });
+    var lateC = { all: 0 };
+    STATUSES.forEach(function (s) { lateC[s.id] = 0; });
+    visible.forEach(function (t) { counts[t.status]++; if (lateDays(t)) { lateC.all++; lateC[t.status]++; } });
     var tabs = [{ id: 'all', label: 'All' }].concat(STATUSES);
     $('tabs').innerHTML = tabs.map(function (s) {
       var sel = s.id === ui.tab;
@@ -568,7 +655,8 @@ dialog::backdrop { background: rgba(8, 12, 20, .55); }
         (s.id !== 'all' ? ' data-status="' + s.id + '"' : '') +
         ' aria-selected="' + sel + '" tabindex="' + (sel ? 0 : -1) + '" aria-controls="panel">' +
         (s.id !== 'all' ? '<span class="dot"></span>' : '') +
-        '<span>' + s.label + '</span><span class="count">' + counts[s.id] + '</span></button>';
+        '<span>' + s.label + '</span><span class="count">' + counts[s.id] + '</span>' +
+        (lateC[s.id] ? '<span class="late-pill">' + lateC[s.id] + ' late</span>' : '') + '</button>';
     }).join('');
     $('panel').setAttribute('aria-labelledby', 'tab-' + ui.tab);
   }
@@ -596,16 +684,29 @@ dialog::backdrop { background: rgba(8, 12, 20, .55); }
     panel.innerHTML = '<ul class="list">' + list.map(rowHTML).join('') + '</ul>';
   }
 
+  function delivHTML(t) {
+    if (!t.deliverables) return '';
+    var late = lateDays(t), chip;
+    if (t.deliverableDone) chip = '<span class="chip done">Complete</span>';
+    else if (!t.deliverableDue) chip = '<span class="chip none">No due date</span>';
+    else if (late) chip = '<span class="chip late">Overdue · ' + late + (late === 1 ? ' day' : ' days') + '</span>';
+    else if (t.deliverableDue === todayStr()) chip = '<span class="chip soon">Due today</span>';
+    else chip = '<span class="chip">Due ' + fmtDue(t.deliverableDue) + '</span>';
+    return '<div class="deliv' + (late ? ' late' : '') + '"><div class="head"><span class="lbl">Deliverables</span>' + chip +
+      '<label class="done"><input type="checkbox" data-act="done"' + (t.deliverableDone ? ' checked' : '') + '> Mark complete</label></div>' +
+      esc(t.deliverables) + '</div>';
+  }
+
   function rowHTML(t) {
     var opts = STATUSES.map(function (s) {
       return '<option value="' + s.id + '"' + (s.id === t.status ? ' selected' : '') + '>' + s.label + '</option>';
     }).join('');
     var edited = t.updated !== t.created;
-    return '<li class="row" data-id="' + esc(t.id) + '">' +
+    return '<li class="row' + (lateDays(t) ? ' late' : '') + '" data-id="' + esc(t.id) + '">' +
       '<div class="id"><span class="num">' + esc(t.number) + '</span>' +
         '<span class="center-tag" style="--h:' + centerHue(t.center) + '" title="Center">' + esc(t.center) + '</span></div>' +
       '<div class="main"><p class="desc">' + esc(t.description) + '</p>' +
-        (t.deliverables ? '<p class="deliv"><span class="lbl">Deliverables</span>' + esc(t.deliverables) + '</p>' : '') +
+        delivHTML(t) +
         '<p class="meta"><span>Requested by <b>' + esc(t.requestor) + '</b></span>' +
         '<span>Opened ' + fmtDate(t.created) + '</span>' +
         (edited ? '<span>Updated ' + fmtAgo(t.updated) + '</span>' : '') +
@@ -671,6 +772,17 @@ dialog::backdrop { background: rgba(8, 12, 20, .55); }
     toast(t.number + ' moved to ' + STATUS_BY_ID[status].label, acts);
   }
 
+  function setDone(id, done) {
+    var t = findTicket(id);
+    if (!t) return;
+    var snap = snapshot();
+    t.deliverableDone = done;
+    t.updated = new Date().toISOString();
+    save(); render();
+    toast(done ? 'Deliverable on ' + t.number + ' marked complete' : 'Deliverable on ' + t.number + ' reopened',
+      [{ label: 'Undo', fn: function () { restore(snap); } }]);
+  }
+
   function deleteTicket(id) {
     var t = findTicket(id);
     if (!t) return;
@@ -703,6 +815,7 @@ dialog::backdrop { background: rgba(8, 12, 20, .55); }
     syncDeliv();
     if ($('fHasDeliv').checked) $('fDeliv').focus();
   });
+  $('fDue').addEventListener('input', function () { setErr($('fDue'), 'eDue', ''); });
   $('fDeliv').addEventListener('input', function () { syncDeliv(); setErr($('fDeliv'), 'eDeliv', ''); });
   function openTicketForm(id) {
     editingId = id || null;
@@ -715,10 +828,13 @@ dialog::backdrop { background: rgba(8, 12, 20, .55); }
     $('fDesc').value = t ? t.description : '';
     $('fDeliv').value = t ? t.deliverables : '';
     $('fHasDeliv').checked = !!(t && t.deliverables);
+    $('fDue').value = t ? t.deliverableDue : '';
+    $('fDone').checked = !!(t && t.deliverableDone);
+    $('doneWrap').hidden = !t;
     syncDeliv();
     $('fReq').value = t ? t.requestor : '';
     $('fStatus').value = t ? t.status : (ui.tab !== 'all' ? ui.tab : 'open');
-    [['fNumber', 'eNumber'], ['fCenter', 'eCenter'], ['fDesc', 'eDesc'], ['fReq', 'eReq'], ['fDeliv', 'eDeliv']].forEach(function (p) { setErr($(p[0]), p[1], ''); });
+    [['fNumber', 'eNumber'], ['fCenter', 'eCenter'], ['fDesc', 'eDesc'], ['fReq', 'eReq'], ['fDeliv', 'eDeliv'], ['fDue', 'eDue']].forEach(function (p) { setErr($(p[0]), p[1], ''); });
     dlg.showModal();
     $('fNumber').focus();
   }
@@ -730,6 +846,8 @@ dialog::backdrop { background: rgba(8, 12, 20, .55); }
     var desc = $('fDesc').value.trim();
     var hasDeliv = $('fHasDeliv').checked;
     var deliv = hasDeliv ? $('fDeliv').value.trim() : '';
+    var due = hasDeliv ? $('fDue').value : '';
+    var done = hasDeliv && !!editingId && $('fDone').checked;
     var req = $('fReq').value.trim();
     var status = $('fStatus').value;
     var ok = true;
@@ -742,7 +860,8 @@ dialog::backdrop { background: rgba(8, 12, 20, .55); }
     setErr($('fDesc'), 'eDesc', desc ? '' : 'Add a short description.');
     setErr($('fReq'), 'eReq', req ? '' : 'Enter the requestor.');
     setErr($('fDeliv'), 'eDeliv', !hasDeliv ? '' : !deliv ? 'Describe the deliverable, or untick the box.' : deliv.length > 100 ? 'Shorten this to 100 characters or fewer.' : '');
-    if (!number || dupe || !center || !desc || !req || (hasDeliv && (!deliv || deliv.length > 100))) ok = false;
+    setErr($('fDue'), 'eDue', hasDeliv && !due ? 'Choose the date it must be complete by.' : '');
+    if (!number || dupe || !center || !desc || !req || (hasDeliv && (!deliv || deliv.length > 100 || !due))) ok = false;
     if (!ok) {
       var first = dlg.querySelector('[aria-invalid="true"]');
       if (first) first.focus();
@@ -755,12 +874,12 @@ dialog::backdrop { background: rgba(8, 12, 20, .55); }
     if (editingId) {
       t = findTicket(editingId);
       var oldStatus = t.status;
-      t.number = number; t.center = center; t.description = desc; t.deliverables = deliv; t.requestor = req;
+      t.number = number; t.center = center; t.description = desc; t.deliverables = deliv; t.deliverableDue = due; t.deliverableDone = done; t.requestor = req;
       t.status = status; t.updated = now; t.sample = false;
       toast(oldStatus !== status ? 'Saved ' + number + ', now ' + STATUS_BY_ID[status].label : 'Saved ' + number,
         [{ label: 'Undo', fn: function () { restore(snap); } }]);
     } else {
-      t = { id: uid(), number: number, center: center, description: desc, deliverables: deliv, requestor: req, status: status, created: now, updated: now, sample: false };
+      t = { id: uid(), number: number, center: center, description: desc, deliverables: deliv, deliverableDue: due, deliverableDone: false, requestor: req, status: status, created: now, updated: now, sample: false };
       state.tickets.push(t);
       var acts = [{ label: 'Undo', fn: function () { restore(snap); } }];
       if (ui.tab !== 'all' && ui.tab !== status) acts.push({ label: 'Go to ' + STATUS_BY_ID[status].label, fn: function () { goTab(status); } });
@@ -867,6 +986,10 @@ dialog::backdrop { background: rgba(8, 12, 20, .55); }
     e.preventDefault();
   });
 
+  $('lateToggle').addEventListener('click', function () { ui.late = !ui.late; render(); });
+  var lastDay = todayStr();
+  setInterval(function () { if (todayStr() !== lastDay) { lastDay = todayStr(); render(); } }, 60000);
+
   $('q').addEventListener('input', function (e) { ui.q = e.target.value.trim(); render(); });
   $('centerFilter').addEventListener('change', function (e) { ui.center = e.target.value; render(); });
   $('sortBy').addEventListener('change', function (e) { ui.sort = e.target.value; render(); });
@@ -883,8 +1006,10 @@ dialog::backdrop { background: rgba(8, 12, 20, .55); }
     else if (act === 'delete') deleteTicket(id);
   });
   $('panel').addEventListener('change', function (e) {
-    if (e.target.getAttribute('data-act') !== 'status') return;
-    changeStatus(e.target.closest('.row').getAttribute('data-id'), e.target.value);
+    var act = e.target.getAttribute('data-act');
+    var id = e.target.closest('.row') && e.target.closest('.row').getAttribute('data-id');
+    if (act === 'status') changeStatus(id, e.target.value);
+    else if (act === 'done') setDone(id, e.target.checked);
   });
 
   function readHash() {
