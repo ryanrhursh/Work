@@ -25,9 +25,7 @@
   --tag-fg-l: 30%;
   --s-open-fg: #0a6c9c;        --s-open-bg: #e0f0f8;
   --s-in-progress-fg: #85570a; --s-in-progress-bg: #fbeed0;
-  --s-on-hold-fg: #6a49b0;     --s-on-hold-bg: #ece6f8;
   --s-resolved-fg: #1b7a43;    --s-resolved-bg: #dcf3e4;
-  --s-closed-fg: #596679;      --s-closed-bg: #e5e9f0;
   --font-ui: 'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   --font-mono: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 }
@@ -48,9 +46,7 @@
     --tag-fg-l: 80%;
     --s-open-fg: #72c7f0;        --s-open-bg: #12303f;
     --s-in-progress-fg: #f1c260; --s-in-progress-bg: #3a2d0f;
-    --s-on-hold-fg: #bda6f0;     --s-on-hold-bg: #2a2246;
     --s-resolved-fg: #74d99f;    --s-resolved-bg: #143423;
-    --s-closed-fg: #9ba8ba;      --s-closed-bg: #252e3b;
     color-scheme: dark;
   }
 }
@@ -70,9 +66,7 @@
   --tag-fg-l: 80%;
   --s-open-fg: #72c7f0;        --s-open-bg: #12303f;
   --s-in-progress-fg: #f1c260; --s-in-progress-bg: #3a2d0f;
-  --s-on-hold-fg: #bda6f0;     --s-on-hold-bg: #2a2246;
   --s-resolved-fg: #74d99f;    --s-resolved-bg: #143423;
-  --s-closed-fg: #9ba8ba;      --s-closed-bg: #252e3b;
   color-scheme: dark;
 }
 
@@ -148,9 +142,7 @@ button { cursor: pointer; }
 }
 [data-status="open"] { --sf: var(--s-open-fg); --sb: var(--s-open-bg); }
 [data-status="in-progress"] { --sf: var(--s-in-progress-fg); --sb: var(--s-in-progress-bg); }
-[data-status="on-hold"] { --sf: var(--s-on-hold-fg); --sb: var(--s-on-hold-bg); }
 [data-status="resolved"] { --sf: var(--s-resolved-fg); --sb: var(--s-resolved-bg); }
-[data-status="closed"] { --sf: var(--s-closed-fg); --sb: var(--s-closed-bg); }
 
 /* Filter bar */
 .bar { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 14px; }
@@ -376,10 +368,9 @@ dialog::backdrop { background: rgba(8, 12, 20, .55); }
   var STATUSES = [
     { id: 'open', label: 'Open' },
     { id: 'in-progress', label: 'In Progress' },
-    { id: 'on-hold', label: 'On Hold' },
-    { id: 'resolved', label: 'Resolved' },
-    { id: 'closed', label: 'Closed' }
+    { id: 'resolved', label: 'Resolved' }
   ];
+  var LEGACY_STATUS = { 'on-hold': 'in-progress', 'closed': 'resolved' }; /* statuses removed from the first versions */
   var STATUS_BY_ID = {};
   STATUSES.forEach(function (s) { STATUS_BY_ID[s.id] = s; });
   var KEY = 'ticketboard.v1';
@@ -405,7 +396,7 @@ dialog::backdrop { background: rgba(8, 12, 20, .55); }
         description: String(t.description || ''),
         center: String(t.center || '').toUpperCase(),
         requestor: String(t.requestor || ''),
-        status: STATUS_BY_ID[t.status] ? t.status : 'open',
+        status: STATUS_BY_ID[t.status] ? t.status : (LEGACY_STATUS[t.status] || 'open'),
         created: t.created || now,
         updated: t.updated || t.created || now,
         sample: !!t.sample
@@ -429,9 +420,9 @@ dialog::backdrop { background: rgba(8, 12, 20, .55); }
         t('INC0004131', c[5], 'Dana Whitfield', 'open', 'Needs a second monitor and a docking station for the new desk setup.', 3, 3),
         t('INC0004127', c[0], 'Priya Raman', 'open', 'Laptop will not join the guest Wi-Fi since the last update. Wired connection works fine.', 27, 26),
         t('INC0004125', c[1], 'Marcus Bell', 'in-progress', 'Shared printer on the 2nd floor shows offline for the whole team. Power cycled once, still offline.', 52, 5),
-        t('INC0004119', c[2], 'Tomás Herrera', 'on-hold', 'New hire needs accounts and a laptop ready for Monday. Waiting on HR to confirm the start date.', 96, 30),
+        t('INC0004119', c[2], 'Tomás Herrera', 'in-progress', 'New hire needs accounts and a laptop ready for Monday. Waiting on HR to confirm the start date.', 96, 30),
         t('INC0004102', c[3], 'Lena Ostrowski', 'resolved', 'Locked out of the scheduling system. Password reset and MFA re-enrolled.', 150, 70),
-        t('INC0004098', c[4], 'Kwame Adeyemi', 'closed', 'Monitor at desk 14 flickers. Replaced the display cable, confirmed fixed.', 220, 170)
+        t('INC0004098', c[4], 'Kwame Adeyemi', 'resolved', 'Monitor at desk 14 flickers. Replaced the display cable, confirmed fixed.', 220, 170)
       ]
     };
   }
@@ -529,7 +520,7 @@ dialog::backdrop { background: rgba(8, 12, 20, .55); }
   }
 
   function renderSummary() {
-    var active = state.tickets.filter(function (t) { return t.status === 'open' || t.status === 'in-progress' || t.status === 'on-hold'; }).length;
+    var active = state.tickets.filter(function (t) { return t.status !== 'resolved'; }).length;
     var total = state.tickets.length;
     $('summary').innerHTML = '<b>' + active + '</b> active · <b>' + total + '</b> total' +
       (storageOK ? '' : ' · <span style="color:var(--danger)">not saving, browser storage is blocked</span>');
