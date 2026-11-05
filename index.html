@@ -603,7 +603,8 @@ dialog::backdrop { background: rgba(8, 12, 20, .55); }
   STATUSES.forEach(function (s) { STATUS_BY_ID[s.id] = s; });
   var KEY = 'ticketboard.v1';
   var MAX_CENTERS = 12;
-  var DEFAULT_CENTERS = ['CO', 'HBG', 'MDT', 'HSY', 'LNC', 'NDV'];
+  var DEFAULT_CENTERS = ['CO', 'HBG', 'MDT', 'HSY', 'LNC', 'NDV', 'ETN'];
+  var SIX_CENTERS = ['CO', 'HBG', 'MDT', 'HSY', 'LNC', 'NDV']; /* the list before ETN was added, migrated on load */
   var PLACEHOLDER_CENTERS = ['NYC', 'BOS', 'CHI', 'DAL', 'DEN', 'SEA']; /* first-version defaults, migrated on load */
 
   /* ---------- storage ---------- */
@@ -671,6 +672,8 @@ dialog::backdrop { background: rgba(8, 12, 20, .55); }
             if (i >= 0) t.center = DEFAULT_CENTERS[i];
           });
           data.centers = DEFAULT_CENTERS.slice();
+        } else if (data.centers.join() === SIX_CENTERS.join()) {
+          data.centers.push('ETN');
         }
         return data;
       }
