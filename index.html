@@ -412,6 +412,18 @@ kbd { font-family: var(--font-mono); font-size: .75rem; border: 1px solid var(--
 .drow .putback { font-size: .8125rem; padding: 4px 10px; white-space: nowrap; }
 @media (prefers-reduced-motion: no-preference) { .fcard:not(.dragging) { transition: transform .2s ease, opacity .2s ease; } }
 
+/* Quick add */
+.qnum { font-size: 1.5rem; padding: 13px 16px; border: 2px solid var(--ink); border-radius: 12px; background: var(--surface); letter-spacing: .02em; }
+.f input.qnum { border-color: var(--ink); background: var(--surface); }
+.qhead { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 8px; font-size: .875rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+.qhead .btn { padding: 4px 10px; font-size: .8125rem; }
+.qlist { display: flex; flex-wrap: wrap; gap: 6px; max-height: 12rem; overflow-y: auto; padding: 2px; }
+.qchip { display: inline-flex; align-items: center; gap: 4px; padding: 3px 4px 3px 10px; border-radius: 8px; background: var(--surface-2); border: 1px solid var(--line-strong); font-family: var(--font-mono); font-size: .875rem; }
+.qchip button { border: 0; background: none; color: var(--muted); width: 22px; height: 22px; border-radius: 6px; display: grid; place-items: center; padding: 0; }
+.qchip button:hover { background: var(--danger-bg); color: var(--danger); }
+.qchip button svg { width: 12px; height: 12px; }
+@media (prefers-reduced-motion: no-preference) { .qchip.new { animation: pop .25s ease-out; } @keyframes pop { from { transform: scale(.85); opacity: .3; } } }
+
 /* Requestor suggestions */
 .nm-menu {
   position: fixed; z-index: 1000; background: var(--surface); border: 1px solid var(--line-strong); border-radius: 10px;
@@ -451,6 +463,10 @@ kbd { font-family: var(--font-mono); font-size: .75rem; border: 1px solid var(--
       <button class="btn" id="exportBtn" type="button">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg>
         Export
+      </button>
+      <button class="btn" id="quickBtn" type="button">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 3L5 14h6l-1 7 8-11h-6l1-7z"/></svg>
+        Quick add
       </button>
       <button class="btn" id="bulkBtn" type="button">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h10M4 12h10M4 18h6M18 14v6M15 17h6"/></svg>
@@ -594,6 +610,33 @@ kbd { font-family: var(--font-mono); font-size: .75rem; border: 1px solid var(--
       <button class="btn" type="button" id="xClose">Close</button>
       <button class="btn" type="button" id="xCopy">Copy for spreadsheet</button>
       <button class="btn primary" type="submit" id="xSave">Download CSV</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="quickDlg" aria-labelledby="quickTitle">
+  <form class="dlg" id="quickForm" novalidate>
+    <div>
+      <h2 id="quickTitle">Quick add</h2>
+      <p class="help" style="margin-top:6px">Type a ticket number and press Enter. It joins the list and the box clears for the next one. Click Done when you have them all.</p>
+      <p class="help draftnote" id="qNote" hidden></p>
+    </div>
+    <div class="f">
+      <label for="qNum" id="qPrompt">Ticket number for #1</label>
+      <input id="qNum" class="qnum mono" autocomplete="off" aria-describedby="qErr" enterkeyhint="next">
+      <p class="err" id="qErr" role="alert"></p>
+    </div>
+    <div>
+      <div class="qhead"><span id="qCount" role="status">Nothing entered yet</span><button type="button" class="btn" id="qClear">Clear list</button></div>
+      <div class="qlist" id="qList"></div>
+    </div>
+    <div class="f bstatus">
+      <label for="qStatus">Status for these tickets</label>
+      <select id="qStatus"></select>
+    </div>
+    <div class="foot">
+      <button class="btn" type="button" id="qClose">Close</button>
+      <button class="btn primary" type="submit" id="qDone">Done</button>
     </div>
   </form>
 </dialog>
@@ -1879,6 +1922,134 @@ kbd { font-family: var(--font-mono); font-size: .75rem; border: 1px solid var(--
     toast('Added ' + rows.length + (rows.length === 1 ? ' ticket' : ' tickets') + ' as ' + STATUS_BY_ID[status].label, acts);
   });
 
+  /* ---------- quick add: one ticket number at a time ---------- */
+  var qdlg = $('quickDlg');
+  var qList = [];
+  var QKEY = 'ticketboard.quickdraft.v1';
+
+  function qStore() {
+    try {
+      if (!qList.length) localStorage.removeItem(QKEY);
+      else localStorage.setItem(QKEY, JSON.stringify({ v: 1, numbers: qList, status: $('qStatus').value, savedAt: new Date().toISOString() }));
+    } catch (err) { /* storage may be blocked; the list still works */ }
+  }
+  function qRender(flashLast) {
+    $('qList').innerHTML = qList.map(function (n, i) {
+      return '<span class="qchip' + (flashLast && i === qList.length - 1 ? ' new' : '') + '">' + esc(n) +
+        '<button type="button" data-i="' + i + '" aria-label="Remove ' + esc(n) + '">' + ICON_X + '</button></span>';
+    }).join('');
+    var n = qList.length;
+    $('qCount').textContent = n === 0 ? 'Nothing entered yet' : n + (n === 1 ? ' ticket number entered' : ' ticket numbers entered');
+    $('qPrompt').textContent = n === 0 ? 'Ticket number for #1' : 'Next ticket number (#' + (n + 1) + ')';
+    $('qDone').textContent = n > 0 ? 'Done · add ' + n : 'Done';
+    $('qClear').hidden = n === 0;
+    var box = $('qList'); box.scrollTop = box.scrollHeight;
+  }
+  /* Adds one number, or returns the reason it cannot be added. */
+  function qTry(raw) {
+    var n = (raw || '').trim();
+    if (!n) return 'Type a ticket number first.';
+    var k = n.toLowerCase();
+    if (state.tickets.some(function (t) { return t.number.toLowerCase() === k; })) return n + ' already exists on the board.';
+    if (qList.some(function (x) { return x.toLowerCase() === k; })) return n + ' is already in this list.';
+    qList.push(n);
+    return '';
+  }
+  function qShowErr(msg) {
+    $('qErr').textContent = msg || '';
+    if (msg) $('qNum').setAttribute('aria-invalid', 'true'); else $('qNum').removeAttribute('aria-invalid');
+  }
+  function openQuick() {
+    var d = null;
+    try { d = JSON.parse(localStorage.getItem(QKEY) || 'null'); } catch (err) { d = null; }
+    qList = d && Array.isArray(d.numbers) ? d.numbers.filter(function (x) {
+      var k = String(x).toLowerCase();
+      return !state.tickets.some(function (t) { return t.number.toLowerCase() === k; });
+    }).map(String) : [];
+    $('qStatus').innerHTML = STATUSES.map(function (st) { return '<option value="' + st.id + '">' + st.label + '</option>'; }).join('');
+    $('qStatus').value = d && STATUS_BY_ID[d.status] ? d.status : ((ui.view === 'tickets' && ui.tab !== 'all') ? ui.tab : 'open');
+    var note = $('qNote');
+    note.hidden = !qList.length;
+    if (qList.length) note.textContent = 'Picked up where you left off: ' + qList.length + (qList.length === 1 ? ' number' : ' numbers') + ' from your last session.';
+    $('qNum').value = '';
+    qShowErr('');
+    qRender(false);
+    qdlg.showModal();
+    $('qNum').focus();
+  }
+
+  $('quickBtn').addEventListener('click', openQuick);
+  $('qClose').addEventListener('click', function () { qdlg.close(); });
+  $('qNum').addEventListener('input', function () { qShowErr(''); });
+  /* Enter adds the number and clears the box for the next one (it does not finish the form). */
+  $('qNum').addEventListener('keydown', function (e) {
+    if (e.key !== 'Enter' || e.isComposing) return;
+    e.preventDefault();
+    var msg = qTry($('qNum').value);
+    qShowErr(msg);
+    if (msg) { $('qNum').select(); return; }
+    $('qNum').value = '';
+    qStore(); qRender(true);
+    $('qNum').focus();
+  });
+  /* Pasting a column of numbers (new lines, tabs or commas) adds them all. */
+  $('qNum').addEventListener('paste', function (e) {
+    var txt = (e.clipboardData || window.clipboardData).getData('text');
+    if (!/[\n\t,]/.test(txt.trim())) return;
+    e.preventDefault();
+    var skipped = [], added = 0;
+    txt.split(/[\n\t,]+/).forEach(function (part) {
+      if (!part.trim()) return;
+      if (qTry(part)) skipped.push(part.trim()); else added++;
+    });
+    qStore(); qRender(added > 0);
+    qShowErr(skipped.length ? 'Skipped ' + skipped.length + ' already used: ' + skipped.slice(0, 4).join(', ') + (skipped.length > 4 ? ', and more' : '') + '.' : '');
+  });
+  $('qList').addEventListener('click', function (e) {
+    var b = e.target.closest('button[data-i]');
+    if (!b) return;
+    qList.splice(+b.getAttribute('data-i'), 1);
+    qStore(); qRender(false);
+    $('qNum').focus();
+  });
+  $('qClear').addEventListener('click', function () { qList = []; qStore(); $('qNote').hidden = true; qRender(false); $('qNum').focus(); });
+  $('qStatus').addEventListener('change', qStore);
+
+  $('quickForm').addEventListener('submit', function (e) {
+    e.preventDefault();
+    var pending = $('qNum').value.trim();
+    if (pending) { /* typed but not yet entered: count it */
+      var msg = qTry(pending);
+      qShowErr(msg);
+      if (msg) { $('qNum').select(); return; }
+      $('qNum').value = '';
+    }
+    if (!qList.length) { qdlg.close(); return; }
+    var status = $('qStatus').value;
+    var snap = snapshot();
+    var base = Date.now(), ids = [];
+    qList.forEach(function (num, i) {
+      var stamp = new Date(base - i).toISOString(); /* keeps entry order under "Recently updated" */
+      var id = uid();
+      ids.push(id);
+      state.tickets.push({
+        id: id, number: num, center: '', description: '', deliverables: '', deliverableDue: '', deliverableDone: false,
+        deliverableActive: false, deliverablePassedAt: '', requestor: '', status: status, created: stamp, updated: stamp
+      });
+    });
+    var n = qList.length;
+    qList = []; qStore();
+    save();
+    qdlg.close();
+    render();
+    var acts = [
+      { label: 'Undo', fn: function () { restore(snap); } },
+      { label: 'Add details', fn: function () { openEdit(ids); } }
+    ];
+    if (ui.view === 'tickets' && ui.tab !== 'all' && ui.tab !== status) acts.push({ label: 'Go to ' + STATUS_BY_ID[status].label, fn: function () { goTab(status); } });
+    toast('Added ' + n + (n === 1 ? ' ticket' : ' tickets') + ' as ' + STATUS_BY_ID[status].label, acts);
+  });
+
   /* ---------- bulk edit ---------- */
   var edlg = $('editDlg');
   var editOrig = {};
@@ -1964,8 +2135,8 @@ kbd { font-family: var(--font-mono); font-size: .75rem; border: 1px solid var(--
     return n;
   }
 
-  function openEdit() {
-    var list = shownTickets();
+  function openEdit(onlyIds) {
+    var list = Array.isArray(onlyIds) ? onlyIds.map(findTicket).filter(Boolean) : shownTickets();
     if (!list.length) { toast('There are no tickets on this page to edit.', []); return; }
     editOrig = {};
     $('editRows').innerHTML = '';
@@ -1973,7 +2144,9 @@ kbd { font-family: var(--font-mono); font-size: .75rem; border: 1px solid var(--
       editOrig[t.id] = JSON.parse(JSON.stringify(t));
       $('editRows').appendChild(editRowFor(t));
     });
-    $('editScope').textContent = 'Editing the ' + list.length + (list.length === 1 ? ' ticket' : ' tickets') + ' shown now (' + shownLabel() +
+    $('editScope').textContent = Array.isArray(onlyIds)
+      ? 'Editing the ' + list.length + (list.length === 1 ? ' ticket' : ' tickets') + ' you just added. Fill in whatever you have; every field is optional. Only rows you change are updated.'
+      : 'Editing the ' + list.length + (list.length === 1 ? ' ticket' : ' tickets') + ' shown now (' + shownLabel() +
       '). Change any cell and save. Only rows you change are updated. To edit everything, go to the All tab with no filters.';
     $('eSetStatus').innerHTML = '<option value="">Leave as is</option>' + STATUSES.map(function (st) { return '<option value="' + st.id + '">' + st.label + '</option>'; }).join('');
     $('eSetCenter').innerHTML = '<option value="">Leave as is</option>' + state.centers.map(function (c) { return '<option value="' + c + '">' + c + '</option>'; }).join('');
@@ -1997,7 +2170,7 @@ kbd { font-family: var(--font-mono); font-size: .75rem; border: 1px solid var(--
   }
   function updateEditSummaryKeepArm() { return editRowEls().some(rowChanged); }
 
-  $('editAllBtn').addEventListener('click', openEdit);
+  $('editAllBtn').addEventListener('click', function () { openEdit(); });
   $('eCancel').addEventListener('click', tryCloseEdit);
   edlg.addEventListener('cancel', function (e) { e.preventDefault(); tryCloseEdit(); });
 
