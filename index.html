@@ -163,6 +163,7 @@ button { cursor: pointer; }
 .row:hover { background: color-mix(in srgb, var(--surface-2) 70%, transparent); }
 .id { grid-area: id; display: flex; flex-direction: column; gap: 6px; align-items: flex-start; min-width: 0; }
 .num { font-family: var(--font-mono); font-weight: 600; font-size: .9rem; overflow-wrap: anywhere; }
+.nodesc { color: var(--muted); font-style: italic; }
 .center-tag {
   font-family: var(--font-mono); font-size: .75rem; font-weight: 600; letter-spacing: .06em;
   padding: 1px 7px; border-radius: 5px;
@@ -547,7 +548,7 @@ kbd { font-family: var(--font-mono); font-size: .75rem; border: 1px solid var(--
   <form class="dlg" id="bulkForm" novalidate>
     <div>
       <h2 id="bulkTitle">Bulk add tickets</h2>
-      <p class="help" style="margin-top:6px">Fill in the rows, or copy rows from a spreadsheet and paste them into any cell. Column order: Ticket #, Center, Requestor, Description, Deliverable, Complete by. Empty rows are skipped. Use the arrow keys to move between cells, so you can fill one whole column at a time. Enter moves down, and typing a center code picks it.</p>
+      <p class="help" style="margin-top:6px">Fill in the rows, or copy rows from a spreadsheet and paste them into any cell. Column order: Ticket #, Center, Requestor, Description, Deliverable, Complete by. Only the ticket number is required; everything else can be left blank. Empty rows are skipped. Use the arrow keys to move between cells, so you can fill one whole column at a time. Enter moves down, and typing a center code picks it.</p>
     </div>
     <div class="f bstatus">
       <label for="bStatus">Status for every ticket in this batch</label>
@@ -950,8 +951,8 @@ kbd { font-family: var(--font-mono); font-size: .75rem; border: 1px solid var(--
         ' aria-label="Mark complete: ' + esc(t.deliverables) + '"></div>' +
       '<div class="main"><p class="dtext">' + esc(t.deliverables) + '</p>' +
         '<p class="meta"><button type="button" class="ticket-link num" data-act="goto" title="Show this ticket on the board">' + esc(t.number) + '</button>' +
-        '<span class="center-tag" style="--h:' + centerHue(t.center) + '">' + esc(t.center) + '</span>' +
-        '<span>Requested by <b>' + esc(t.requestor) + '</b></span>' +
+        (t.center ? '<span class="center-tag" style="--h:' + centerHue(t.center) + '">' + esc(t.center) + '</span>' : '') +
+        (t.requestor ? '<span>Requested by <b>' + esc(t.requestor) + '</b></span>' : '') +
         '<span class="spill" data-status="' + t.status + '">' + st.label + '</span>' +
         '</p></div>' +
       '<div class="side">' + activeChip(t) + dueChip(t) +
@@ -1019,10 +1020,10 @@ kbd { font-family: var(--font-mono); font-size: .75rem; border: 1px solid var(--
     var edited = t.updated !== t.created;
     return '<li class="row' + (lateDays(t) ? ' late' : '') + '" data-id="' + esc(t.id) + '">' +
       '<div class="id"><span class="num">' + esc(t.number) + '</span>' +
-        '<span class="center-tag" style="--h:' + centerHue(t.center) + '" title="Center">' + esc(t.center) + '</span></div>' +
-      '<div class="main"><p class="desc">' + esc(t.description) + '</p>' +
+        (t.center ? '<span class="center-tag" style="--h:' + centerHue(t.center) + '" title="Center">' + esc(t.center) + '</span>' : '') + '</div>' +
+      '<div class="main"><p class="desc">' + (t.description.trim() ? esc(t.description) : '<span class="nodesc">No description</span>') + '</p>' +
         delivHTML(t) +
-        '<p class="meta"><span>Requested by <b>' + esc(t.requestor) + '</b></span>' +
+        '<p class="meta">' + (t.requestor ? '<span>Requested by <b>' + esc(t.requestor) + '</b></span>' : '') +
         '<span>Opened ' + fmtDate(t.created) + '</span>' +
         (edited ? '<span>Updated ' + fmtAgo(t.updated) + '</span>' : '') +
         '</p></div>' +
@@ -1187,12 +1188,14 @@ kbd { font-family: var(--font-mono); font-size: .75rem; border: 1px solid var(--
       return t.id !== editingId && t.number.toLowerCase() === number.toLowerCase();
     });
     setErr($('fNumber'), 'eNumber', !number ? 'Enter the ticket number.' : dupe ? 'A ticket with this number already exists.' : '');
-    setErr($('fCenter'), 'eCenter', center ? '' : 'Choose a center.');
-    setErr($('fDesc'), 'eDesc', desc ? '' : 'Add a short description.');
-    setErr($('fReq'), 'eReq', req ? '' : 'Enter the requestor.');
+    var was = editingId ? findTicket(editingId) : null; /* editing a ticket that was saved without a field lets it stay blank */
+    var needCenter = !was || !!was.center, needDesc = !was || !!was.description.trim(), needReq = !was || !!was.requestor;
+    setErr($('fCenter'), 'eCenter', center || !needCenter ? '' : 'Choose a center.');
+    setErr($('fDesc'), 'eDesc', desc || !needDesc ? '' : 'Add a short description.');
+    setErr($('fReq'), 'eReq', req || !needReq ? '' : 'Enter the requestor.');
     setErr($('fDeliv'), 'eDeliv', !hasDeliv ? '' : !deliv ? 'Describe the deliverable, or untick the box.' : deliv.length > 100 ? 'Shorten this to 100 characters or fewer.' : '');
     setErr($('fDue'), 'eDue', hasDeliv && !due ? 'Choose the date it must be complete by.' : '');
-    if (!number || dupe || !center || !desc || !req || (hasDeliv && (!deliv || deliv.length > 100 || !due))) ok = false;
+    if (!number || dupe || (!center && needCenter) || (!desc && needDesc) || (!req && needReq) || (hasDeliv && (!deliv || deliv.length > 100 || !due))) ok = false;
     if (!ok) {
       var first = dlg.querySelector('[aria-invalid="true"]');
       if (first) first.focus();
@@ -1301,10 +1304,10 @@ kbd { font-family: var(--font-mono); font-size: .75rem; border: 1px solid var(--
         '<p class="ftext">' + esc(t.deliverables) + '</p>' +
         '<div class="finfo">' +
           '<div class="frow"><button type="button" class="ticket-link num" data-act="goto" title="Show this ticket on the board">' + esc(t.number) + '</button>' +
-            '<span class="center-tag" style="--h:' + centerHue(t.center) + '">' + esc(t.center) + '</span>' +
+            (t.center ? '<span class="center-tag" style="--h:' + centerHue(t.center) + '">' + esc(t.center) + '</span>' : '') +
             '<span class="spill" data-status="' + t.status + '">' + st.label + '</span></div>' +
-          '<div class="frow"><span>Requested by <b>' + esc(t.requestor) + '</b></span><span>Opened ' + fmtDate(t.created) + '</span></div>' +
-          '<p class="fdesc">' + esc(t.description) + '</p>' +
+          '<div class="frow">' + (t.requestor ? '<span>Requested by <b>' + esc(t.requestor) + '</b></span>' : '') + '<span>Opened ' + fmtDate(t.created) + '</span></div>' +
+          (t.description.trim() ? '<p class="fdesc">' + esc(t.description) + '</p>' : '') +
           (t.deliverablePassedAt ? '<p class="fnote">You passed on this one earlier.</p>' : '') +
         '</div></article></div>' +
       '<div class="fbtns">' +
@@ -1717,9 +1720,6 @@ kbd { font-family: var(--font-mono); font-size: .75rem; border: 1px solid var(--
       BCOLS.forEach(function (c) { v[c] = bcell(row, c).value.trim(); });
       if (!v.number) { errs.push('Ticket number is missing'); bad.number = 1; }
       else if (seen[v.number.toLowerCase()]) { errs.push('Ticket number ' + v.number + ' is already used'); bad.number = 1; }
-      if (!v.center) { errs.push('Choose a center'); bad.center = 1; }
-      if (!v.requestor) { errs.push('Requestor is missing'); bad.requestor = 1; }
-      if (!v.description) { errs.push('Description is missing'); bad.description = 1; }
       if (v.deliverable && !v.due) { errs.push('Add a complete-by date for the deliverable'); bad.due = 1; }
       if (!v.deliverable && v.due) { errs.push('Add the deliverable description, or clear the date'); bad.deliverable = 1; }
       if (errs.length) {
@@ -1875,7 +1875,7 @@ kbd { font-family: var(--font-mono); font-size: .75rem; border: 1px solid var(--
   function editRowFor(t) {
     var statusOpts = STATUSES.map(function (st) { return '<option value="' + st.id + '">' + st.label + '</option>'; }).join('');
     var centers = state.centers.indexOf(t.center) >= 0 ? state.centers : state.centers.concat([t.center]);
-    var centerOpts = centers.map(function (c) { return '<option value="' + esc(c) + '">' + esc(c) + '</option>'; }).join('');
+    var centerOpts = '<option value="">No center</option>' + centers.map(function (c) { return '<option value="' + esc(c) + '">' + esc(c) + '</option>'; }).join('');
     var div = document.createElement('div');
     div.className = 'brow erow';
     div.setAttribute('data-id', t.id);
@@ -1988,9 +1988,10 @@ kbd { font-family: var(--font-mono); font-size: .75rem; border: 1px solid var(--
       var v = readEditRow(row);
       if (!v.number) { errs.push('Ticket number is missing'); bad.number = 1; }
       else if (count[v.number.toLowerCase()] > 1) { errs.push('Ticket number ' + v.number + ' is used more than once'); bad.number = 1; }
-      if (!v.center) { errs.push('Choose a center'); bad.center = 1; }
-      if (!v.requestor) { errs.push('Requestor is missing'); bad.requestor = 1; }
-      if (!v.description) { errs.push('Description is missing'); bad.description = 1; }
+      var was = origVals(editOrig[row.getAttribute('data-id')]); /* a field that was already blank may stay blank */
+      if (!v.center && was.center) { errs.push('Choose a center'); bad.center = 1; }
+      if (!v.requestor && was.requestor) { errs.push('Requestor is missing'); bad.requestor = 1; }
+      if (!v.description && was.description) { errs.push('Description is missing'); bad.description = 1; }
       if (v.deliverable && !v.due) { errs.push('Add a complete-by date for the deliverable'); bad.due = 1; }
       if (!v.deliverable && v.due) { errs.push('Add the deliverable description, or clear the date'); bad.deliverable = 1; }
       if (errs.length) {
