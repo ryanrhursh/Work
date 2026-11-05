@@ -122,7 +122,8 @@ button { cursor: pointer; }
 .icon-btn svg { width: 17px; height: 17px; }
 
 /* Tabs */
-.tabs-scroll { overflow-x: auto; margin-bottom: 14px; border-bottom: 1px solid var(--line); scrollbar-width: thin; }
+.tabs-scroll { overflow-x: auto; overflow-y: hidden; padding-bottom: 1px; margin-bottom: 14px; border-bottom: 1px solid var(--line); scrollbar-width: none; }
+.tabs-scroll::-webkit-scrollbar { display: none; }
 .tabs { display: flex; gap: 4px; min-width: max-content; }
 .tab {
   display: inline-flex; align-items: center; gap: 8px;
