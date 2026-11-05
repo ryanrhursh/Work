@@ -181,7 +181,7 @@ button { cursor: pointer; }
 .chip.late { background: var(--late-solid); color: var(--late-solid-fg); border-color: transparent; }
 
 /* Overdue: solid banner above the tabs, red outline on the row, red pill on the tab */
-.views { display: inline-flex; gap: 4px; padding: 4px; margin-bottom: 18px; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; max-width: 100%; }
+.views { display: flex; flex-wrap: wrap; width: fit-content; gap: 4px; padding: 4px; margin-bottom: 18px; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; max-width: 100%; }
 .views button { display: inline-flex; align-items: center; gap: 8px; border: 0; background: transparent; color: var(--muted); font-weight: 600; padding: 8px 16px; border-radius: 9px; }
 .views button:hover { color: var(--ink); }
 .views button[aria-pressed="true"] { background: var(--ink); color: var(--bg); }
@@ -359,6 +359,53 @@ dialog::backdrop { background: rgba(8, 12, 20, .55); }
   .brow.chg { margin: 0 -8px; padding: 12px 8px; }
 }
 
+@media (max-width: 30rem) {
+  .views button { padding: 8px 10px; gap: 6px; font-size: .875rem; }
+  .views .n { padding: 0 6px; font-size: .6875rem; }
+  .views .w { display: none; }
+}
+/* Focus: one deliverable at a time */
+.chip.act { background: var(--ink); color: var(--bg); border-color: transparent; }
+.fwrap { max-width: 34rem; margin: 6px auto 0; }
+.fcount { margin: 0 0 12px; color: var(--muted); font-size: .875rem; text-align: center; font-variant-numeric: tabular-nums; }
+.deckstack { position: relative; padding-bottom: 14px; }
+.deckstack::before, .deckstack::after {
+  content: ""; position: absolute; left: 0; right: 0; top: 10px; bottom: 0; border-radius: 16px;
+  background: var(--surface); border: 1px solid var(--line); opacity: 0; z-index: 0;
+}
+.deckstack[data-left="2"]::before, .deckstack[data-left="3"]::before, .deckstack[data-left="more"]::before { opacity: 1; transform: scale(.96); }
+.deckstack[data-left="3"]::after, .deckstack[data-left="more"]::after { opacity: 1; transform: scale(.92); top: 20px; }
+.fcard {
+  position: relative; z-index: 1; background: var(--surface); border: 1px solid var(--line); border-radius: 16px;
+  box-shadow: var(--shadow); padding: 22px 22px 20px; touch-action: pan-y; user-select: none; -webkit-user-select: none;
+  cursor: grab; display: grid; gap: 14px;
+}
+.fcard.dragging { cursor: grabbing; transition: none; }
+.fcard.late { box-shadow: inset 0 0 0 2px var(--late-solid), var(--shadow); }
+.ftop { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.fcard .flbl { font-size: .6875rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.fcard .ftext { margin: 0; font-size: 1.375rem; line-height: 1.3; font-weight: 600; letter-spacing: -.01em; overflow-wrap: anywhere; text-wrap: balance; }
+.fcard .finfo { display: grid; gap: 8px; padding-top: 14px; border-top: 1px solid var(--line); }
+.fcard .frow { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; font-size: .875rem; color: var(--muted); }
+.fcard .frow b { color: var(--ink); font-weight: 500; }
+.fcard .fdesc { margin: 0; font-size: .9375rem; overflow-wrap: anywhere; white-space: pre-wrap; }
+.fcard .fnote { margin: 0; font-size: .8125rem; color: var(--muted); }
+.stamp {
+  position: absolute; top: 18px; padding: 2px 12px; border: 3px solid; border-radius: 8px; opacity: 0; pointer-events: none;
+  font-weight: 800; font-size: 1.25rem; letter-spacing: .1em; text-transform: uppercase;
+}
+.stamp.pass { left: 18px; transform: rotate(-12deg); color: var(--danger); }
+.stamp.accept { right: 18px; transform: rotate(12deg); color: var(--s-resolved-fg); }
+.fbtns { display: flex; gap: 12px; justify-content: center; margin-top: 12px; }
+.fbtns .btn { flex: 1 1 0; max-width: 13rem; justify-content: center; padding: 13px 18px; font-size: 1rem; font-weight: 600; border-radius: 12px; }
+.fbtns .btn svg { width: 20px; height: 20px; }
+.fbtns .pass { color: var(--danger); border-color: var(--danger); background: var(--surface); }
+.fbtns .pass:hover { background: var(--danger-bg); }
+.fhint { text-align: center; color: var(--muted); font-size: .8125rem; margin: 10px 0 0; }
+kbd { font-family: var(--font-mono); font-size: .75rem; border: 1px solid var(--line-strong); border-radius: 4px; padding: 0 5px; background: var(--surface); }
+.drow .putback { font-size: .8125rem; padding: 4px 10px; white-space: nowrap; }
+@media (prefers-reduced-motion: no-preference) { .fcard:not(.dragging) { transition: transform .2s ease, opacity .2s ease; } }
+
 /* Toast */
 .toast {
   position: fixed; left: 50%; transform: translateX(-50%);
@@ -385,6 +432,10 @@ dialog::backdrop { background: rgba(8, 12, 20, .55); }
       <button class="btn" id="settingsBtn" type="button">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h10M18 6h2M4 12h2M10 12h10M4 18h12M20 18h0"/><circle cx="16" cy="6" r="2"/><circle cx="8" cy="12" r="2"/><circle cx="18" cy="18" r="2"/></svg>
         Centers &amp; backup
+      </button>
+      <button class="btn" id="exportBtn" type="button">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg>
+        Export
       </button>
       <button class="btn" id="bulkBtn" type="button">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h10M4 12h10M4 18h6M18 14v6M15 17h6"/></svg>
@@ -511,6 +562,23 @@ dialog::backdrop { background: rgba(8, 12, 20, .55); }
   </form>
 </dialog>
 
+<dialog id="exportDlg" aria-labelledby="exportTitle">
+  <form class="dlg" id="exportForm" novalidate>
+    <h2 id="exportTitle">Export to a spreadsheet</h2>
+    <div class="f">
+      <label for="xScope">Which tickets</label>
+      <select id="xScope"></select>
+    </div>
+    <p class="help" id="xCols"></p>
+    <p class="help">Copy puts the table on your clipboard: click cell A1 in Excel or Google Sheets and paste. Download saves a CSV file that opens in Excel, Numbers and Sheets.</p>
+    <div class="foot">
+      <button class="btn" type="button" id="xClose">Close</button>
+      <button class="btn" type="button" id="xCopy">Copy for spreadsheet</button>
+      <button class="btn primary" type="submit" id="xSave">Download CSV</button>
+    </div>
+  </form>
+</dialog>
+
 <dialog id="editDlg" aria-labelledby="editTitle">
   <form class="dlg" id="editForm" novalidate>
     <div>
@@ -615,6 +683,8 @@ dialog::backdrop { background: rgba(8, 12, 20, .55); }
         deliverables: String(t.deliverables || ''),
         deliverableDue: t.deliverables && /^\d{4}-\d{2}-\d{2}$/.test(t.deliverableDue || '') ? t.deliverableDue : '',
         deliverableDone: !!(t.deliverables && t.deliverableDone),
+        deliverableActive: !!(t.deliverables && t.deliverableActive),
+        deliverablePassedAt: t.deliverables && t.deliverablePassedAt ? String(t.deliverablePassedAt) : '',
         center: String(t.center || '').toUpperCase(),
         requestor: String(t.requestor || ''),
         status: STATUS_BY_ID[t.status] ? t.status : (LEGACY_STATUS[t.status] || 'open'),
@@ -645,7 +715,7 @@ dialog::backdrop { background: rgba(8, 12, 20, .55); }
   }
 
   var state = load();
-  var ui = { tab: 'all', q: '', center: '', sort: 'updated', late: false, view: 'tickets', dtab: 'todo' };
+  var ui = { tab: 'all', q: '', center: '', sort: 'updated', late: false, view: 'tickets', dtab: 'todo', ftab: 'deck' };
   var editingId = null;
   var focusAfter = null;
 
@@ -740,7 +810,7 @@ dialog::backdrop { background: rgba(8, 12, 20, .55); }
     renderLate();
     renderViews();
     renderFilters();
-    $('sortBy').hidden = ui.view === 'deliverables';
+    $('sortBy').hidden = ui.view !== 'tickets';
     renderTabs();
     renderPanel();
     if (focusAfter) {
@@ -788,6 +858,7 @@ dialog::backdrop { background: rgba(8, 12, 20, .55); }
 
   function renderTabs() {
     if (ui.view === 'deliverables') return renderDTabs();
+    if (ui.view === 'focus') return renderFTabs();
     var visible = state.tickets.filter(matchesFilters);
     var counts = { all: visible.length };
     STATUSES.forEach(function (s) { counts[s.id] = 0; });
@@ -809,6 +880,7 @@ dialog::backdrop { background: rgba(8, 12, 20, .55); }
 
   function renderPanel() {
     if (ui.view === 'deliverables') return renderDeliverables();
+    if (ui.view === 'focus') return renderFocus();
     var list = sorted(state.tickets.filter(function (t) {
       return matchesFilters(t) && (ui.tab === 'all' || t.status === ui.tab);
     }));
@@ -831,6 +903,8 @@ dialog::backdrop { background: rgba(8, 12, 20, .55); }
     panel.innerHTML = '<ul class="list">' + list.map(rowHTML).join('') + '</ul>';
   }
 
+  function isActive(t) { return !!(t.deliverables && t.deliverableActive && !t.deliverableDone); }
+  function activeChip(t) { return isActive(t) ? '<span class="chip act">Active</span>' : ''; }
   function dueChip(t) {
     var late = lateDays(t);
     if (t.deliverableDone) return '<span class="chip done">Complete</span>';
@@ -848,10 +922,12 @@ dialog::backdrop { background: rgba(8, 12, 20, .55); }
   function renderViews() {
     var open = state.tickets.filter(function (t) { return t.deliverables && !t.deliverableDone; }).length;
     var nLate = state.tickets.filter(function (t) { return lateDays(t) > 0; }).length;
+    var activeCount = state.tickets.filter(isActive).length;
     $('views').innerHTML =
       '<button type="button" data-view="tickets" aria-pressed="' + (ui.view === 'tickets') + '">Tickets <span class="n">' + state.tickets.length + '</span></button>' +
       '<button type="button" data-view="deliverables" aria-pressed="' + (ui.view === 'deliverables') + '">Deliverables <span class="n' + (nLate ? ' late' : '') + '">' +
-        (nLate ? nLate + ' late' : open + ' open') + '</span></button>';
+        (nLate ? nLate + '<span class="w"> late</span>' : open + '<span class="w"> open</span>') + '</span></button>' +
+      '<button type="button" data-view="focus" aria-pressed="' + (ui.view === 'focus') + '">Focus <span class="n">' + activeCount + '<span class="w"> active</span></span></button>';
   }
 
   function renderDTabs() {
@@ -886,7 +962,7 @@ dialog::backdrop { background: rgba(8, 12, 20, .55); }
         '<span>Requested by <b>' + esc(t.requestor) + '</b></span>' +
         '<span class="spill" data-status="' + t.status + '">' + st.label + '</span>' +
         '</p></div>' +
-      '<div class="side">' + dueChip(t) +
+      '<div class="side">' + activeChip(t) + dueChip(t) +
         '<button class="icon-btn" type="button" data-act="edit" aria-label="Edit ' + esc(t.number) + '" title="Edit ticket">' + ICON_EDIT + '</button></div></li>';
   }
 
@@ -939,7 +1015,7 @@ dialog::backdrop { background: rgba(8, 12, 20, .55); }
   function delivHTML(t) {
     if (!t.deliverables) return '';
     var late = lateDays(t), chip = dueChip(t);
-    return '<div class="deliv' + (late ? ' late' : '') + '"><div class="head"><span class="lbl">Deliverables</span>' + chip +
+    return '<div class="deliv' + (late ? ' late' : '') + '"><div class="head"><span class="lbl">Deliverables</span>' + chip + activeChip(t) +
       '<label class="done"><input type="checkbox" data-act="done"' + (t.deliverableDone ? ' checked' : '') + '> Mark complete</label></div>' +
       esc(t.deliverables) + '</div>';
   }
@@ -1004,6 +1080,12 @@ dialog::backdrop { background: rgba(8, 12, 20, .55); }
     ui.view = 'tickets';
     ui.tab = id;
     setHash(id);
+    render();
+  }
+  function goFTab(id) {
+    ui.view = 'focus';
+    ui.ftab = id;
+    setHash(id === 'active' ? 'focus-active' : 'focus');
     render();
   }
   function goDTab(id) {
@@ -1131,12 +1213,12 @@ dialog::backdrop { background: rgba(8, 12, 20, .55); }
     if (editingId) {
       t = findTicket(editingId);
       var oldStatus = t.status;
-      t.number = number; t.center = center; t.description = desc; t.deliverables = deliv; t.deliverableDue = due; t.deliverableDone = done; t.requestor = req;
+      t.number = number; t.center = center; t.description = desc; t.deliverables = deliv; t.deliverableDue = due; t.deliverableDone = done; if (!deliv) t.deliverableActive = false; t.requestor = req;
       t.status = status; t.updated = now;
       toast(oldStatus !== status ? 'Saved ' + number + ', now ' + STATUS_BY_ID[status].label : 'Saved ' + number,
         [{ label: 'Undo', fn: function () { restore(snap); } }]);
     } else {
-      t = { id: uid(), number: number, center: center, description: desc, deliverables: deliv, deliverableDue: due, deliverableDone: false, requestor: req, status: status, created: now, updated: now };
+      t = { id: uid(), number: number, center: center, description: desc, deliverables: deliv, deliverableDue: due, deliverableDone: false, deliverableActive: false, deliverablePassedAt: '', requestor: req, status: status, created: now, updated: now };
       state.tickets.push(t);
       var acts = [{ label: 'Undo', fn: function () { restore(snap); } }];
       if (ui.tab !== 'all' && ui.tab !== status) acts.push({ label: 'Go to ' + STATUS_BY_ID[status].label, fn: function () { goTab(status); } });
@@ -1147,6 +1229,259 @@ dialog::backdrop { background: rgba(8, 12, 20, .55); }
     render();
   });
   $('ticketCancel').addEventListener('click', function () { dlg.close(); });
+
+  /* ---------- focus: one deliverable at a time ---------- */
+  var ICON_X2 = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>';
+  var ICON_OK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
+
+  function byUrgency(a, b) {
+    var la = lateDays(a), lb = lateDays(b);
+    if (la !== lb) return lb - la;
+    return (a.deliverableDue || '9999').localeCompare(b.deliverableDue || '9999') ||
+      a.number.localeCompare(b.number, undefined, { numeric: true });
+  }
+  function openDeliverables() {
+    return state.tickets.filter(function (t) { return t.deliverables && !t.deliverableDone && matchesFilters(t); });
+  }
+  /* The deck: anything not yet accepted. Never-passed items come first (most urgent first); a pass sends one to the back. */
+  function deckItems() {
+    return openDeliverables().filter(function (t) { return !t.deliverableActive; }).sort(function (a, b) {
+      var pa = a.deliverablePassedAt || '', pb = b.deliverablePassedAt || '';
+      if (pa !== pb) return pa < pb ? -1 : 1;
+      return byUrgency(a, b);
+    });
+  }
+  function activeItems() {
+    return openDeliverables().filter(function (t) { return t.deliverableActive; }).sort(byUrgency);
+  }
+
+  function renderFTabs() {
+    var tabs = [{ id: 'deck', label: 'Deck', n: deckItems().length }, { id: 'active', label: 'Active', n: activeItems().length }];
+    $('tabs').innerHTML = tabs.map(function (s) {
+      var sel = s.id === ui.ftab;
+      return '<button class="tab" role="tab" type="button" id="tab-' + s.id + '" data-tab="' + s.id + '"' +
+        (s.id === 'active' ? ' data-status="in-progress"' : '') +
+        ' aria-selected="' + sel + '" tabindex="' + (sel ? 0 : -1) + '" aria-controls="panel">' +
+        (s.id === 'active' ? '<span class="dot"></span>' : '') +
+        '<span>' + s.label + '</span><span class="count">' + s.n + '</span></button>';
+    }).join('');
+    $('panel').setAttribute('aria-labelledby', 'tab-' + ui.ftab);
+  }
+
+  function activeRowHTML(t) {
+    var html = drowHTML(t);
+    var i = html.lastIndexOf('</div></li>');
+    return html.slice(0, i) + '<button class="btn putback" type="button" data-act="unaccept" title="Return to the deck">Put back</button>' + html.slice(i);
+  }
+
+  function renderFocus() {
+    var panel = $('panel');
+    var anyDeliv = state.tickets.some(function (t) { return t.deliverables; });
+    var filtered = ui.q || ui.center || ui.late;
+    if (ui.ftab === 'active') {
+      var act = activeItems();
+      panel.innerHTML = act.length
+        ? '<ul class="list">' + act.map(activeRowHTML).join('') + '</ul>'
+        : '<div class="list"><div class="empty"><strong>' + (filtered ? 'Nothing matches' : 'Nothing active yet') + '</strong>' +
+          (filtered ? 'Try a different search or choose all centers.' : 'Accept a deliverable from the deck and it will be listed here.') +
+          (filtered ? '' : '<button class="btn primary" type="button" data-act="gotodeck">Open the deck</button>') + '</div></div>';
+      return;
+    }
+    var deck = deckItems();
+    if (!deck.length) {
+      var nAct = activeItems().length;
+      var html;
+      if (!anyDeliv) html = '<strong>No deliverables yet</strong>Tick Deliverables? when you add a ticket and it will show up here.';
+      else if (filtered && !nAct) html = '<strong>Nothing matches</strong>Try a different search or choose all centers.';
+      else if (nAct) html = '<strong>The deck is empty</strong>Every open deliverable is in your Active list.<button class="btn primary" type="button" data-act="gotoactive">View Active</button>';
+      else html = '<strong>All caught up</strong>Every deliverable is complete.';
+      panel.innerHTML = '<div class="list"><div class="empty">' + html + '</div></div>';
+      return;
+    }
+    var t = deck[0], left = deck.length, late = lateDays(t), st = STATUS_BY_ID[t.status];
+    panel.innerHTML =
+      '<div class="fwrap" data-id="' + esc(t.id) + '">' +
+      '<p class="fcount">' + left + (left === 1 ? ' deliverable' : ' deliverables') + ' in the deck</p>' +
+      '<div class="deckstack" data-left="' + (left > 3 ? 'more' : left) + '">' +
+      '<article class="fcard' + (late ? ' late' : '') + '" aria-label="Deliverable from ticket ' + esc(t.number) + '">' +
+        '<span class="stamp pass">Pass</span><span class="stamp accept">Accept</span>' +
+        '<div class="ftop"><span class="flbl">Deliverable</span>' + dueChip(t) + '</div>' +
+        '<p class="ftext">' + esc(t.deliverables) + '</p>' +
+        '<div class="finfo">' +
+          '<div class="frow"><button type="button" class="ticket-link num" data-act="goto" title="Show this ticket on the board">' + esc(t.number) + '</button>' +
+            '<span class="center-tag" style="--h:' + centerHue(t.center) + '">' + esc(t.center) + '</span>' +
+            '<span class="spill" data-status="' + t.status + '">' + st.label + '</span></div>' +
+          '<div class="frow"><span>Requested by <b>' + esc(t.requestor) + '</b></span><span>Opened ' + fmtDate(t.created) + '</span></div>' +
+          '<p class="fdesc">' + esc(t.description) + '</p>' +
+          (t.deliverablePassedAt ? '<p class="fnote">You passed on this one earlier.</p>' : '') +
+        '</div></article></div>' +
+      '<div class="fbtns">' +
+        '<button class="btn pass" type="button" data-act="pass">' + ICON_X2 + 'Pass</button>' +
+        '<button class="btn primary" type="button" data-act="accept">' + ICON_OK + 'Accept</button></div>' +
+      '<p class="fhint">Swipe the card, or press <kbd>←</kbd> to pass and <kbd>→</kbd> to accept.</p></div>';
+  }
+
+  function passDeliverable(id) {
+    var t = findTicket(id);
+    if (!t) return;
+    var snap = snapshot();
+    t.deliverablePassedAt = new Date().toISOString();
+    save(); render();
+    toast('Passed on ' + t.number + '. It goes to the back of the deck.', [{ label: 'Undo', fn: function () { restore(snap); } }]);
+  }
+  function acceptDeliverable(id) {
+    var t = findTicket(id);
+    if (!t) return;
+    var snap = snapshot();
+    t.deliverableActive = true;
+    t.deliverablePassedAt = '';
+    save(); render();
+    toast('Accepted ' + t.number + '. It is now in Active.', [
+      { label: 'Undo', fn: function () { restore(snap); } },
+      { label: 'View Active', fn: function () { goFTab('active'); } }
+    ]);
+  }
+  function unacceptDeliverable(id) {
+    var t = findTicket(id);
+    if (!t) return;
+    var snap = snapshot();
+    t.deliverableActive = false;
+    t.deliverablePassedAt = new Date().toISOString();
+    save(); render();
+    toast(t.number + ' is back in the deck.', [{ label: 'Undo', fn: function () { restore(snap); } }]);
+  }
+
+  /* Slide the card away, then record the decision. */
+  var deciding = false;
+  function decide(kind) {
+    var wrap = $('panel').querySelector('.fwrap');
+    if (!wrap || deciding) return;
+    var id = wrap.getAttribute('data-id');
+    var act = kind === 'accept' ? acceptDeliverable : passDeliverable;
+    if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) { act(id); return; }
+    var card = wrap.querySelector('.fcard');
+    var dir = kind === 'accept' ? 1 : -1;
+    deciding = true;
+    card.classList.remove('dragging');
+    card.querySelector('.stamp.' + kind).style.opacity = '1';
+    card.style.transform = 'translateX(' + dir * 560 + 'px) rotate(' + dir * 16 + 'deg)';
+    card.style.opacity = '0';
+    setTimeout(function () { deciding = false; act(id); }, 210);
+  }
+
+  var drag = null;
+  $('panel').addEventListener('pointerdown', function (e) {
+    var card = e.target.closest('.fcard');
+    if (!card || deciding || e.target.closest('button, a, input, select, textarea')) return;
+    if (e.pointerType === 'mouse' && e.button !== 0) return;
+    drag = { card: card, x0: e.clientX, dx: 0 };
+    try { card.setPointerCapture(e.pointerId); } catch (err) { /* capture is optional */ }
+    card.classList.add('dragging');
+  });
+  $('panel').addEventListener('pointermove', function (e) {
+    if (!drag) return;
+    drag.dx = e.clientX - drag.x0;
+    drag.card.style.transform = 'translateX(' + drag.dx + 'px) rotate(' + drag.dx / 18 + 'deg)';
+    drag.card.querySelector('.stamp.accept').style.opacity = Math.max(0, Math.min(1, drag.dx / 100));
+    drag.card.querySelector('.stamp.pass').style.opacity = Math.max(0, Math.min(1, -drag.dx / 100));
+  });
+  function endDrag() {
+    if (!drag) return;
+    var d = drag; drag = null;
+    d.card.classList.remove('dragging');
+    if (Math.abs(d.dx) > 110) { decide(d.dx > 0 ? 'accept' : 'pass'); return; }
+    d.card.style.transform = '';
+    d.card.querySelector('.stamp.accept').style.opacity = '';
+    d.card.querySelector('.stamp.pass').style.opacity = '';
+  }
+  $('panel').addEventListener('pointerup', endDrag);
+  $('panel').addEventListener('pointercancel', endDrag);
+  document.addEventListener('keydown', function (e) {
+    if (ui.view !== 'focus' || ui.ftab !== 'deck' || e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return;
+    if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+    if (document.querySelector('dialog[open]') || /^(INPUT|SELECT|TEXTAREA)$/.test(e.target.tagName || '') || e.target.closest('#tabs')) return;
+    e.preventDefault();
+    decide(e.key === 'ArrowRight' ? 'accept' : 'pass');
+  });
+
+  /* ---------- export to a spreadsheet ---------- */
+  var xdlg = $('exportDlg');
+  var XCOLS = ['Ticket #', 'Center', 'Requestor', 'Description', 'Status', 'Opened', 'Last updated',
+    'Deliverable', 'Deliverable due', 'Deliverable status', 'Days overdue'];
+  function ymd(iso) { return dateStr(new Date(iso)); }
+  function exportList() {
+    if ($('xScope').value === 'shown') return shownTickets();
+    return state.tickets.slice().sort(function (a, b) {
+      return new Date(a.created) - new Date(b.created) || a.number.localeCompare(b.number, undefined, { numeric: true });
+    });
+  }
+  /* Quote for CSV/TSV, and stop text that starts like a formula from running as one when opened in a spreadsheet. */
+  function xcell(v, sep) {
+    var str = v === null || v === undefined ? '' : String(v);
+    if (typeof v === 'string' && /^[=+\-@\t\r]/.test(str) && !/^[-+]?\d+(\.\d+)?$/.test(str)) str = "'" + str;
+    if (str.indexOf('"') >= 0 || str.indexOf('\n') >= 0 || str.indexOf('\r') >= 0 || str.indexOf(sep) >= 0) str = '"' + str.replace(/"/g, '""') + '"';
+    return str;
+  }
+  function exportTable(sep) {
+    var rows = exportList().map(function (t) {
+      var late = lateDays(t);
+      var ds = !t.deliverables ? '' : t.deliverableDone ? 'Complete' : isActive(t) ? 'Active' : 'To do';
+      return [t.number, t.center, t.requestor, t.description, STATUS_BY_ID[t.status].label, ymd(t.created), ymd(t.updated),
+        t.deliverables, t.deliverableDue, ds, late || ''];
+    });
+    return [XCOLS].concat(rows).map(function (r) { return r.map(function (c) { return xcell(c, sep); }).join(sep); }).join('\r\n');
+  }
+  function openExport() {
+    if (!state.tickets.length) { toast('There are no tickets to export yet.', []); return; }
+    var shown = shownTickets().length;
+    $('xScope').innerHTML = '<option value="all">All tickets (' + state.tickets.length + ')</option>' +
+      '<option value="shown">Only what this page shows (' + shown + ', ' + esc(shownLabel()) + ')</option>';
+    $('xCols').textContent = 'Columns: ' + XCOLS.join(', ') + '.';
+    xdlg.showModal();
+  }
+  function fallbackDownload(name, text) {
+    var blob = new Blob([text], { type: 'text/csv;charset=utf-8' });
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob); a.download = name;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(function () { URL.revokeObjectURL(a.href); }, 2000);
+  }
+  $('exportBtn').addEventListener('click', openExport);
+  $('xClose').addEventListener('click', function () { xdlg.close(); });
+  $('exportForm').addEventListener('submit', function (e) {
+    e.preventDefault();
+    var n = exportList().length;
+    if (!n) { toast('Nothing to export for that choice.', []); return; }
+    var name = 'tickets-' + todayStr() + '.csv';
+    var text = '﻿' + exportTable(',');
+    var useCap = (window.claude && window.claude.use) ? window.claude.use('downloads') : Promise.resolve(null);
+    useCap.catch(function () { return null; }).then(function (dl) {
+      if (!dl) { fallbackDownload(name, text); xdlg.close(); toast('Downloaded ' + n + (n === 1 ? ' ticket' : ' tickets') + ' as ' + name, []); return; }
+      return dl.save({ filename: name, data: text }).then(function () {
+        xdlg.close(); toast('Saved ' + n + (n === 1 ? ' ticket' : ' tickets') + ' as ' + name, []);
+      }, function (err) {
+        if (err && err.code === 'declined') return;
+        toast('Could not save the file here. Use Copy for spreadsheet instead.', []);
+      });
+    });
+  });
+  $('xCopy').addEventListener('click', function () {
+    var n = exportList().length;
+    if (!n) { toast('Nothing to copy for that choice.', []); return; }
+    var text = exportTable('\t');
+    function done() { xdlg.close(); toast('Copied ' + n + (n === 1 ? ' ticket' : ' tickets') + '. Paste into your spreadsheet.', []); }
+    function legacy() {
+      var ta = document.createElement('textarea');
+      ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+      document.body.appendChild(ta); ta.select();
+      var ok = false;
+      try { ok = document.execCommand('copy'); } catch (err) { ok = false; }
+      ta.remove();
+      if (ok) done(); else toast('Copy was blocked by the browser. Try Download CSV.', []);
+    }
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(done, legacy);
+    else legacy();
+  });
 
   /* ---------- arrow-key movement through the Bulk add / Bulk edit grids ---------- */
   function focusCell(el) {
@@ -1372,7 +1707,7 @@ dialog::backdrop { background: rgba(8, 12, 20, .55); }
       var stamp = new Date(base - i).toISOString(); /* keeps the batch in row order under "Recently updated" */
       state.tickets.push({
         id: uid(), number: v.number, center: v.center, description: v.description,
-        deliverables: v.deliverable, deliverableDue: v.deliverable ? v.due : '', deliverableDone: false,
+        deliverables: v.deliverable, deliverableDue: v.deliverable ? v.due : '', deliverableDone: false, deliverableActive: false, deliverablePassedAt: '',
         requestor: v.requestor, status: status, created: stamp, updated: stamp
       });
     });
@@ -1392,6 +1727,7 @@ dialog::backdrop { background: rgba(8, 12, 20, .55); }
 
   /* The tickets the current page is showing, in the order shown. */
   function shownTickets() {
+    if (ui.view === 'focus') return ui.ftab === 'active' ? activeItems() : deckItems();
     if (ui.view === 'deliverables') {
       return deliverableItems()
         .filter(function (t) { return ui.dtab === 'done' ? t.deliverableDone : !t.deliverableDone; })
@@ -1403,6 +1739,7 @@ dialog::backdrop { background: rgba(8, 12, 20, .55); }
   }
   function shownLabel() {
     var filtered = ui.q || ui.center || ui.late;
+    if (ui.view === 'focus') return 'Focus, ' + (ui.ftab === 'active' ? 'Active' : 'Deck') + (filtered ? ', filtered' : '');
     if (ui.view === 'deliverables') return 'Deliverables, ' + (ui.dtab === 'done' ? 'Completed' : 'To do') + (filtered ? ', filtered' : '');
     return (ui.tab === 'all' ? 'All' : STATUS_BY_ID[ui.tab].label) + (filtered ? ', filtered' : '');
   }
@@ -1571,6 +1908,7 @@ dialog::backdrop { background: rgba(8, 12, 20, .55); }
       t.description = v.description; t.deliverables = v.deliverable;
       t.deliverableDue = v.deliverable ? v.due : '';
       t.deliverableDone = v.deliverable ? v.done : false;
+      if (!v.deliverable) t.deliverableActive = false;
       t.updated = now;
     });
     save();
@@ -1681,21 +2019,24 @@ dialog::backdrop { background: rgba(8, 12, 20, .55); }
     var b = e.target.closest('[data-tab]');
     if (!b) return;
     if (ui.view === 'deliverables') goDTab(b.getAttribute('data-tab'));
+    else if (ui.view === 'focus') goFTab(b.getAttribute('data-tab'));
     else goTab(b.getAttribute('data-tab'));
   });
   $('views').addEventListener('click', function (e) {
     var b = e.target.closest('[data-view]');
     if (!b) return;
-    if (b.getAttribute('data-view') === 'deliverables') goDTab(ui.dtab);
+    var v = b.getAttribute('data-view');
+    if (v === 'deliverables') goDTab(ui.dtab);
+    else if (v === 'focus') goFTab(ui.ftab);
     else goTab(ui.tab);
   });
   $('tabs').addEventListener('keydown', function (e) {
     if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return;
-    var dv = ui.view === 'deliverables';
-    var ids = dv ? ['todo', 'done'] : ['all'].concat(STATUSES.map(function (s) { return s.id; }));
-    var i = ids.indexOf(dv ? ui.dtab : ui.tab) + (e.key === 'ArrowRight' ? 1 : -1);
+    var dv = ui.view === 'deliverables', fv = ui.view === 'focus';
+    var ids = dv ? ['todo', 'done'] : fv ? ['deck', 'active'] : ['all'].concat(STATUSES.map(function (s) { return s.id; }));
+    var i = ids.indexOf(dv ? ui.dtab : fv ? ui.ftab : ui.tab) + (e.key === 'ArrowRight' ? 1 : -1);
     i = (i + ids.length) % ids.length;
-    if (dv) goDTab(ids[i]); else goTab(ids[i]);
+    if (dv) goDTab(ids[i]); else if (fv) goFTab(ids[i]); else goTab(ids[i]);
     var el = $('tab-' + ids[i]);
     if (el) el.focus();
     e.preventDefault();
@@ -1714,12 +2055,17 @@ dialog::backdrop { background: rgba(8, 12, 20, .55); }
     if (!b) return;
     var act = b.getAttribute('data-act');
     if (act === 'new') { openTicketForm(); return; }
+    if (act === 'gotoactive') { goFTab('active'); return; }
+    if (act === 'gotodeck') { goFTab('deck'); return; }
     var row = b.closest('[data-id]');
     if (!row) return;
     var id = row.getAttribute('data-id');
     if (act === 'edit') openTicketForm(id);
     else if (act === 'delete') deleteTicket(id);
     else if (act === 'goto') goToTicket(id);
+    else if (act === 'pass') decide('pass');
+    else if (act === 'accept') decide('accept');
+    else if (act === 'unaccept') unacceptDeliverable(id);
   });
   $('panel').addEventListener('change', function (e) {
     var act = e.target.getAttribute('data-act');
@@ -1731,7 +2077,10 @@ dialog::backdrop { background: rgba(8, 12, 20, .55); }
 
   function readHash() {
     var h = location.hash.replace('#', '');
-    if (h === 'deliverables' || h === 'deliverables-done') {
+    if (h === 'focus' || h === 'focus-active') {
+      ui.view = 'focus';
+      ui.ftab = h === 'focus-active' ? 'active' : 'deck';
+    } else if (h === 'deliverables' || h === 'deliverables-done') {
       ui.view = 'deliverables';
       ui.dtab = h === 'deliverables-done' ? 'done' : 'todo';
     } else {

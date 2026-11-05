@@ -16,3 +16,5 @@ A single-file tracker for IT tickets. Open `index.html` in a browser; no build o
 - **Centers** can be added in Centers & backup (up to 12). Renaming one updates its tickets.
 - The Requestor field suggests names from earlier tickets as you type, in the New ticket form, Bulk add and Bulk edit.
 - In Bulk add and Bulk edit, the arrow keys move between cells (Up and Down stay in the same column), so you can fill all the ticket numbers, then all the centers, and so on. In a text box the arrows move the caret first and move to the next cell at the edge of the text. Typing a center code in a dropdown picks it.
+- **Export** (top right) copies the tickets for pasting into Excel or Google Sheets, or saves them as a CSV file. Choose all tickets or only what the current page shows.
+- **Focus** shows your open deliverables one card at a time. Accept (right arrow, swipe right) moves it to the Active list of things you are working on now. Pass (left arrow, swipe left) sends it to the back of the deck. Active items can be completed or put back in the deck.
