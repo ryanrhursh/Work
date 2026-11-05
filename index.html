@@ -121,14 +121,6 @@ button { cursor: pointer; }
 .icon-btn.del:hover { color: var(--danger); }
 .icon-btn svg { width: 17px; height: 17px; }
 
-/* Example banner */
-.banner {
-  display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
-  border: 1px dashed var(--line-strong); background: var(--surface-2); color: var(--muted);
-  border-radius: 10px; padding: 10px 14px; margin-bottom: 18px; font-size: .875rem;
-}
-.banner .btn { padding: 5px 10px; font-size: .8125rem; }
-
 /* Tabs */
 .tabs-scroll { overflow-x: auto; margin-bottom: 14px; border-bottom: 1px solid var(--line); scrollbar-width: thin; }
 .tabs { display: flex; gap: 4px; min-width: max-content; }
@@ -242,7 +234,6 @@ button { cursor: pointer; }
 .top .sub .latetxt { color: var(--danger); font-weight: 600; }
 .meta { margin: 6px 0 0; display: flex; flex-wrap: wrap; gap: 2px 14px; color: var(--muted); font-size: .8125rem; }
 .meta b { font-weight: 500; color: var(--ink); }
-.eg { font-size: .6875rem; letter-spacing: .08em; text-transform: uppercase; border: 1px dashed var(--line-strong); border-radius: 4px; padding: 0 5px; }
 .status { grid-area: status; position: relative; display: inline-block; }
 .status select {
   appearance: none; -webkit-appearance: none; border: 0; cursor: pointer;
@@ -258,7 +249,7 @@ button { cursor: pointer; }
 
 .empty { padding: 44px 20px; text-align: center; color: var(--muted); }
 .empty strong { display: block; color: var(--ink); font-size: 1.05rem; font-weight: 600; margin-bottom: 4px; }
-.empty .btn { margin-top: 14px; }
+.empty .btn { display: flex; width: max-content; margin: 14px auto 0; }
 
 @media (max-width: 40rem) {
   .row {
@@ -410,11 +401,6 @@ dialog::backdrop { background: rgba(8, 12, 20, .55); }
     </div>
   </header>
 
-  <div class="banner" id="banner" hidden>
-    <span>These are example tickets so you can see how the board works.</span>
-    <button class="btn" id="clearExamples" type="button">Remove examples</button>
-  </div>
-
   <div class="late-bar" id="lateBar" role="alert" hidden>
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l10 18H2L12 3z"/><path d="M12 10v5M12 18h0"/></svg>
     <span id="lateText"></span>
@@ -446,7 +432,7 @@ dialog::backdrop { background: rgba(8, 12, 20, .55); }
     <div class="two">
       <div class="f">
         <label for="fNumber">Ticket number</label>
-        <input id="fNumber" class="mono" autocomplete="off" placeholder="INC0004131" aria-describedby="eNumber">
+        <input id="fNumber" class="mono" autocomplete="off" placeholder="Ticket number" aria-describedby="eNumber">
         <p class="err" id="eNumber"></p>
       </div>
       <div class="f">
@@ -500,7 +486,7 @@ dialog::backdrop { background: rgba(8, 12, 20, .55); }
   <form class="dlg" id="bulkForm" novalidate>
     <div>
       <h2 id="bulkTitle">Bulk add tickets</h2>
-      <p class="help" style="margin-top:6px">Fill in the rows, or copy rows from a spreadsheet and paste them into any cell. Column order: Ticket #, Center, Requestor, Description, Deliverable, Complete by. Empty rows are skipped.</p>
+      <p class="help" style="margin-top:6px">Fill in the rows, or copy rows from a spreadsheet and paste them into any cell. Column order: Ticket #, Center, Requestor, Description, Deliverable, Complete by. Empty rows are skipped. Use the arrow keys to move between cells, so you can fill one whole column at a time. Enter moves down, and typing a center code picks it.</p>
     </div>
     <div class="f bstatus">
       <label for="bStatus">Status for every ticket in this batch</label>
@@ -530,6 +516,7 @@ dialog::backdrop { background: rgba(8, 12, 20, .55); }
     <div>
       <h2 id="editTitle">Bulk edit tickets</h2>
       <p class="help" style="margin-top:6px" id="editScope"></p>
+      <p class="help" style="margin-top:4px">Use the arrow keys to move between cells, so you can work down one whole column at a time. Enter moves down, and typing a status or center picks it.</p>
     </div>
     <div class="eset">
       <div class="f"><label for="eSetStatus">Set status for every row</label>
@@ -607,7 +594,6 @@ dialog::backdrop { background: rgba(8, 12, 20, .55); }
   var MAX_CENTERS = 12;
   var DEFAULT_CENTERS = ['CO', 'HBG', 'MDT', 'HSY', 'LNC', 'NDV', 'ETN'];
   var SIX_CENTERS = ['CO', 'HBG', 'MDT', 'HSY', 'LNC', 'NDV']; /* the list before ETN was added, migrated on load */
-  var PLACEHOLDER_CENTERS = ['NYC', 'BOS', 'CHI', 'DAL', 'DEN', 'SEA']; /* first-version defaults, migrated on load */
 
   /* ---------- storage ---------- */
   function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
@@ -621,7 +607,7 @@ dialog::backdrop { background: rgba(8, 12, 20, .55); }
       throw new Error('The backup has invalid center codes.');
     }
     var now = new Date().toISOString();
-    var tickets = data.tickets.map(function (t) {
+    var tickets = data.tickets.filter(function (t) { return !t.sample; }).map(function (t) { /* tickets from the old example set are discarded */
       return {
         id: String(t.id || uid()),
         number: String(t.number || '').trim(),
@@ -633,33 +619,10 @@ dialog::backdrop { background: rgba(8, 12, 20, .55); }
         requestor: String(t.requestor || ''),
         status: STATUS_BY_ID[t.status] ? t.status : (LEGACY_STATUS[t.status] || 'open'),
         created: t.created || now,
-        updated: t.updated || t.created || now,
-        sample: !!t.sample
+        updated: t.updated || t.created || now
       };
     });
-    return { centers: centers, tickets: tickets, seeded: true };
-  }
-
-  function ago(hours) { return new Date(Date.now() - hours * 3600e3).toISOString(); }
-
-  function seed() {
-    var c = DEFAULT_CENTERS;
-    function t(number, center, requestor, status, description, createdH, updatedH, deliverables, due, done) {
-      return { id: uid(), number: number, center: center, requestor: requestor, status: status,
-        description: description, deliverables: deliverables || '', deliverableDue: deliverables ? due : '', deliverableDone: !!done, created: ago(createdH), updated: ago(updatedH), sample: true };
-    }
-    return {
-      centers: c.slice(),
-      seeded: true,
-      tickets: [
-        t('INC0004131', c[5], 'Dana Whitfield', 'open', 'Needs a second monitor and a docking station for the new desk setup.', 3, 3, 'Second monitor and docking station installed', offsetDay(2), false),
-        t('INC0004127', c[0], 'Priya Raman', 'open', 'Laptop will not join the guest Wi-Fi since the last update. Wired connection works fine.', 27, 26),
-        t('INC0004125', c[1], 'Marcus Bell', 'in-progress', 'Shared printer on the 2nd floor shows offline for the whole team. Power cycled once, still offline.', 52, 5, 'Printer back online and queue cleared', offsetDay(-3), false),
-        t('INC0004119', c[2], 'Tomás Herrera', 'in-progress', 'New hire needs accounts and a laptop ready for Monday. Waiting on HR to confirm the start date.', 96, 30),
-        t('INC0004102', c[3], 'Lena Ostrowski', 'resolved', 'Locked out of the scheduling system. Password reset and MFA re-enrolled.', 150, 70, 'Password reset and MFA re-enrolled', offsetDay(-5), true),
-        t('INC0004098', c[4], 'Kwame Adeyemi', 'resolved', 'Monitor at desk 14 flickers. Replaced the display cable, confirmed fixed.', 220, 170)
-      ]
-    };
+    return { centers: centers, tickets: tickets };
   }
 
   var storageOK = true;
@@ -668,19 +631,13 @@ dialog::backdrop { background: rgba(8, 12, 20, .55); }
       var raw = localStorage.getItem(KEY);
       if (raw) {
         var data = normalize(JSON.parse(raw));
-        if (data.centers.join() === PLACEHOLDER_CENTERS.join()) {
-          data.tickets.forEach(function (t) {
-            var i = PLACEHOLDER_CENTERS.indexOf(t.center);
-            if (i >= 0) t.center = DEFAULT_CENTERS[i];
-          });
-          data.centers = DEFAULT_CENTERS.slice();
-        } else if (data.centers.join() === SIX_CENTERS.join()) {
+        if (data.centers.join() === SIX_CENTERS.join()) {
           data.centers.push('ETN');
         }
         return data;
       }
     } catch (e) { /* fall through to a fresh board */ }
-    return seed();
+    return { centers: DEFAULT_CENTERS.slice(), tickets: [] };
   }
   function save() {
     try { localStorage.setItem(KEY, JSON.stringify(state)); storageOK = true; }
@@ -762,7 +719,7 @@ dialog::backdrop { background: rgba(8, 12, 20, .55); }
   }
 
   /* ---------- render ---------- */
-  /* Names already used as requestors (not from example tickets), newest first, offered as suggestions. */
+  /* Names already used as requestors, newest first, offered as suggestions. */
   function refreshNames() {
     var seen = {}, out = [];
     function add(name) {
@@ -771,7 +728,7 @@ dialog::backdrop { background: rgba(8, 12, 20, .55); }
     }
     /* names typed into Bulk add rows that are not saved yet */
     [].slice.call(document.querySelectorAll('#bulkRows [data-col="requestor"]')).forEach(function (el) { add(el.value); });
-    state.tickets.filter(function (t) { return !t.sample; })
+    state.tickets.slice()
       .sort(function (a, b) { return new Date(b.updated) - new Date(a.updated); })
       .forEach(function (t) { add(t.requestor); });
     $('reqNames').innerHTML = out.map(function (n) { return '<option value="' + esc(n) + '"></option>'; }).join('');
@@ -781,7 +738,6 @@ dialog::backdrop { background: rgba(8, 12, 20, .55); }
     refreshNames();
     renderSummary();
     renderLate();
-    renderBanner();
     renderViews();
     renderFilters();
     $('sortBy').hidden = ui.view === 'deliverables';
@@ -818,10 +774,6 @@ dialog::backdrop { background: rgba(8, 12, 20, .55); }
     $('summary').innerHTML = '<b>' + active + '</b> active · <b>' + total + '</b> total' +
       (nLate ? ' · <span class="latetxt">' + nLate + ' overdue</span>' : '') +
       (storageOK ? '' : ' · <span style="color:var(--danger)">not saving, browser storage is blocked</span>');
-  }
-
-  function renderBanner() {
-    $('banner').hidden = !state.tickets.some(function (t) { return t.sample; });
   }
 
   function renderFilters() {
@@ -866,7 +818,7 @@ dialog::backdrop { background: rgba(8, 12, 20, .55); }
       var label = ui.tab === 'all' ? '' : STATUS_BY_ID[ui.tab].label;
       var title, body, btn = '';
       if (state.tickets.length === 0) {
-        title = 'No tickets yet'; body = 'Add your first ticket to start tracking.';
+        title = 'No tickets yet'; body = 'Add your first ticket, or use Bulk add to enter several at once.';
         btn = '<button class="btn primary" type="button" data-act="new">New ticket</button>';
       } else if (filtered) {
         title = 'Nothing matches'; body = 'Try a different search or choose all centers.';
@@ -933,7 +885,7 @@ dialog::backdrop { background: rgba(8, 12, 20, .55); }
         '<span class="center-tag" style="--h:' + centerHue(t.center) + '">' + esc(t.center) + '</span>' +
         '<span>Requested by <b>' + esc(t.requestor) + '</b></span>' +
         '<span class="spill" data-status="' + t.status + '">' + st.label + '</span>' +
-        (t.sample ? '<span class="eg">Example</span>' : '') + '</p></div>' +
+        '</p></div>' +
       '<div class="side">' + dueChip(t) +
         '<button class="icon-btn" type="button" data-act="edit" aria-label="Edit ' + esc(t.number) + '" title="Edit ticket">' + ICON_EDIT + '</button></div></li>';
   }
@@ -1005,7 +957,7 @@ dialog::backdrop { background: rgba(8, 12, 20, .55); }
         '<p class="meta"><span>Requested by <b>' + esc(t.requestor) + '</b></span>' +
         '<span>Opened ' + fmtDate(t.created) + '</span>' +
         (edited ? '<span>Updated ' + fmtAgo(t.updated) + '</span>' : '') +
-        (t.sample ? '<span class="eg">Example</span>' : '') + '</p></div>' +
+        '</p></div>' +
       '<label class="status" data-status="' + t.status + '"><span class="sr">Status for ' + esc(t.number) + '</span>' +
         '<select data-act="status">' + opts + '</select></label>' +
       '<div class="actions">' +
@@ -1180,11 +1132,11 @@ dialog::backdrop { background: rgba(8, 12, 20, .55); }
       t = findTicket(editingId);
       var oldStatus = t.status;
       t.number = number; t.center = center; t.description = desc; t.deliverables = deliv; t.deliverableDue = due; t.deliverableDone = done; t.requestor = req;
-      t.status = status; t.updated = now; t.sample = false;
+      t.status = status; t.updated = now;
       toast(oldStatus !== status ? 'Saved ' + number + ', now ' + STATUS_BY_ID[status].label : 'Saved ' + number,
         [{ label: 'Undo', fn: function () { restore(snap); } }]);
     } else {
-      t = { id: uid(), number: number, center: center, description: desc, deliverables: deliv, deliverableDue: due, deliverableDone: false, requestor: req, status: status, created: now, updated: now, sample: false };
+      t = { id: uid(), number: number, center: center, description: desc, deliverables: deliv, deliverableDue: due, deliverableDone: false, requestor: req, status: status, created: now, updated: now };
       state.tickets.push(t);
       var acts = [{ label: 'Undo', fn: function () { restore(snap); } }];
       if (ui.tab !== 'all' && ui.tab !== status) acts.push({ label: 'Go to ' + STATUS_BY_ID[status].label, fn: function () { goTab(status); } });
@@ -1195,6 +1147,43 @@ dialog::backdrop { background: rgba(8, 12, 20, .55); }
     render();
   });
   $('ticketCancel').addEventListener('click', function () { dlg.close(); });
+
+  /* ---------- arrow-key movement through the Bulk add / Bulk edit grids ---------- */
+  function focusCell(el) {
+    el.focus();
+    if ((el.tagName === 'INPUT' && el.type !== 'checkbox' && el.type !== 'date') || el.tagName === 'TEXTAREA') {
+      try { el.select(); } catch (err) { /* some inputs cannot select */ }
+    }
+  }
+  /* Up and Down stay in the same column, Left and Right move along the row. In a text box the arrows
+     keep their normal job until the caret reaches the edge of the text. Dropdowns, dates and tick
+     boxes always hand the arrows to the grid; typing still picks a dropdown value. */
+  function gridArrowKey(e, container) {
+    if (e.key.indexOf('Arrow') !== 0 || e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return;
+    var el = e.target.closest('[data-col]');
+    if (!el || !container.contains(el)) return;
+    var k = e.key, vertical = k === 'ArrowUp' || k === 'ArrowDown';
+    var isText = el.tagName === 'TEXTAREA' || (el.tagName === 'INPUT' && el.type !== 'checkbox' && el.type !== 'date');
+    if (el.type === 'date' && !vertical) return; /* left and right move between day, month and year */
+    if (isText) {
+      var tall = el.tagName === 'TEXTAREA' && el.clientHeight > 48; /* wrapped onto more than one line */
+      if (k === 'ArrowLeft' && el.selectionStart !== 0) return;
+      if (k === 'ArrowRight' && el.selectionEnd !== el.value.length) return;
+      if (tall && k === 'ArrowUp' && el.selectionStart !== 0) return;
+      if (tall && k === 'ArrowDown' && el.selectionEnd !== el.value.length) return;
+    }
+    var row = el.closest('.brow');
+    var rows = [].slice.call(container.children).filter(function (c) { return c.classList.contains('brow'); });
+    var cells = [].slice.call(row.querySelectorAll('[data-col]'));
+    var ri = rows.indexOf(row), ci = cells.indexOf(el), target = null;
+    var col = el.getAttribute('data-col');
+    if (k === 'ArrowUp' || k === 'ArrowDown') {
+      var other = rows[ri + (k === 'ArrowDown' ? 1 : -1)];
+      target = other && other.querySelector('[data-col="' + col + '"]');
+    } else target = cells[ci + (k === 'ArrowRight' ? 1 : -1)];
+    if (target) { e.preventDefault(); focusCell(target); }
+    else if (!isText) e.preventDefault(); /* at an edge: do not change a dropdown by accident */
+  }
 
   /* ---------- bulk add ---------- */
   var BCOLS = ['number', 'center', 'requestor', 'description', 'deliverable', 'due'];
@@ -1210,7 +1199,7 @@ dialog::backdrop { background: rgba(8, 12, 20, .55); }
     var div = document.createElement('div');
     div.className = 'brow';
     div.innerHTML =
-      '<label class="bc c-number"><span class="bl">Ticket #</span><input class="mono" data-col="number" autocomplete="off" placeholder="INC0004131"></label>' +
+      '<label class="bc c-number"><span class="bl">Ticket #</span><input class="mono" data-col="number" autocomplete="off" placeholder="Ticket #"></label>' +
       '<label class="bc c-center"><span class="bl">Center</span><select data-col="center">' + opts + '</select></label>' +
       '<label class="bc c-requestor"><span class="bl">Requestor</span><input data-col="requestor" list="reqNames" autocomplete="off" placeholder="Full name"></label>' +
       '<label class="bc c-description"><span class="bl">Description</span><textarea rows="1" data-col="description" placeholder="What is the problem or request?"></textarea></label>' +
@@ -1345,12 +1334,13 @@ dialog::backdrop { background: rgba(8, 12, 20, .55); }
   });
   /* Enter moves down a row, like a spreadsheet, instead of submitting the form. */
   $('bulkRows').addEventListener('keydown', function (e) {
+    gridArrowKey(e, $('bulkRows'));
     if (e.key !== 'Enter' || e.shiftKey || !e.target.matches('input, textarea')) return;
     e.preventDefault();
     var row = e.target.closest('.brow');
     var rows = bulkRowEls();
     var next = rows[rows.indexOf(row) + 1] || addBulkRow();
-    bcell(next, e.target.getAttribute('data-col')).focus();
+    focusCell(bcell(next, e.target.getAttribute('data-col')));
   });
   /* Pasting several cells (tabs / new lines) from a spreadsheet fills the grid from the cell you pasted into. */
   $('bulkRows').addEventListener('paste', function (e) {
@@ -1383,7 +1373,7 @@ dialog::backdrop { background: rgba(8, 12, 20, .55); }
       state.tickets.push({
         id: uid(), number: v.number, center: v.center, description: v.description,
         deliverables: v.deliverable, deliverableDue: v.deliverable ? v.due : '', deliverableDone: false,
-        requestor: v.requestor, status: status, created: stamp, updated: stamp, sample: false
+        requestor: v.requestor, status: status, created: stamp, updated: stamp
       });
     });
     save();
@@ -1516,11 +1506,12 @@ dialog::backdrop { background: rgba(8, 12, 20, .55); }
 
   $('editRows').addEventListener('input', function (e) { grow(e.target); updateEditSummary(); });
   $('editRows').addEventListener('keydown', function (e) {
+    gridArrowKey(e, $('editRows'));
     if (e.key !== 'Enter' || e.shiftKey || !e.target.matches('input:not([type="checkbox"]), textarea')) return;
     e.preventDefault();
     var rows = editRowEls();
     var next = rows[rows.indexOf(e.target.closest('.brow')) + 1];
-    if (next) bcell(next, e.target.getAttribute('data-col')).focus();
+    if (next) focusCell(bcell(next, e.target.getAttribute('data-col')));
   });
   /* Set one value on every row, then drop back to "Leave as is". */
   ['Status', 'Center'].forEach(function (name) {
@@ -1580,7 +1571,7 @@ dialog::backdrop { background: rgba(8, 12, 20, .55); }
       t.description = v.description; t.deliverables = v.deliverable;
       t.deliverableDue = v.deliverable ? v.due : '';
       t.deliverableDone = v.deliverable ? v.done : false;
-      t.updated = now; t.sample = false;
+      t.updated = now;
     });
     save();
     discardArmed = true;
@@ -1600,7 +1591,7 @@ dialog::backdrop { background: rgba(8, 12, 20, .55); }
     var d = document.createElement('div');
     d.className = 'f';
     d.innerHTML = '<label for="c' + i + '">Center ' + (i + 1) + '</label>' +
-      '<input id="c' + i + '" class="mono" maxlength="3" autocomplete="off" placeholder="ABC">';
+      '<input id="c' + i + '" class="mono" maxlength="3" autocomplete="off" placeholder="Code">';
     d.querySelector('input').value = value || '';
     box.appendChild(d);
     return d.querySelector('input');
@@ -1684,12 +1675,7 @@ dialog::backdrop { background: rgba(8, 12, 20, .55); }
   /* ---------- wiring ---------- */
   $('newBtn').addEventListener('click', function () { openTicketForm(); });
   $('settingsBtn').addEventListener('click', openSettings);
-  $('clearExamples').addEventListener('click', function () {
-    var snap = snapshot();
-    state.tickets = state.tickets.filter(function (t) { return !t.sample; });
-    save(); render();
-    toast('Examples removed', [{ label: 'Undo', fn: function () { restore(snap); } }]);
-  });
+
 
   $('tabs').addEventListener('click', function (e) {
     var b = e.target.closest('[data-tab]');
