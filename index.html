@@ -348,8 +348,27 @@ dialog::backdrop { background: rgba(8, 12, 20, .55); }
 .eset { display: flex; gap: 14px; flex-wrap: wrap; }
 .eset .f { min-width: 12rem; }
 .bhead.ehead, .brow.erow {
-  grid-template-columns: 8.5rem 7.75rem 5.5rem 9rem minmax(0, 1.4fr) minmax(0, 1fr) 8.75rem 3rem;
+  grid-template-columns: 1.5rem 8.5rem 7.75rem 5.5rem 9rem minmax(0, 1.4fr) minmax(0, 1fr) 8.75rem 3rem;
 }
+.brow.sel { margin: 0 -10px; padding: 5px 10px; border-radius: 8px; box-shadow: inset 0 0 0 2px var(--focus); border-top-color: transparent; }
+.epanel {
+  position: sticky; top: 0; z-index: 5; background: var(--surface); border: 1px solid var(--line-strong);
+  border-radius: 12px; padding: 10px 14px; box-shadow: var(--shadow);
+}
+.ephead { display: flex; align-items: center; gap: 8px 16px; flex-wrap: wrap; }
+.epanel label.check { display: inline-flex; align-items: center; gap: 8px; font-size: .9375rem; font-weight: 500; cursor: pointer; }
+.epanel label.check input { width: 18px; height: 18px; margin: 0; accent-color: var(--ink); }
+.esel { color: var(--muted); font-size: .875rem; font-variant-numeric: tabular-nums; flex: 1 1 14rem; }
+.eacts { display: inline-flex; gap: 8px; margin-left: auto; }
+.eacts .btn { padding: 6px 12px; }
+.epbody { margin-top: 10px; }
+.epfields { display: grid; gap: 10px; grid-template-columns: repeat(7, minmax(0, 1fr)); }
+.epfields .f label { font-size: .75rem; color: var(--muted); font-weight: 600; }
+.epfields .f input, .epfields .f select { padding: 7px 9px; font-size: .875rem; }
+.emsg { margin: 8px 0 0; font-size: .8125rem; color: var(--muted); min-height: 1.2em; }
+.emsg.err { color: var(--danger); font-weight: 600; }
+.emsg.ok { color: var(--s-resolved-fg); font-weight: 600; }
+.brow.erow .c-sel { display: block; }
 .brow.chg { background: color-mix(in srgb, var(--focus) 9%, transparent); margin: 0 -10px; padding: 5px 10px; border-radius: 8px; border-top-color: transparent; }
 .brow.bad { background: var(--danger-bg); }
 .bc input[type="checkbox"] { width: 20px; height: 20px; padding: 0; margin: 8px 0 0; accent-color: var(--ink); cursor: pointer; }
@@ -358,8 +377,14 @@ dialog::backdrop { background: rgba(8, 12, 20, .55); }
   .bhead.ehead { display: none; }
   .brow.erow {
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-    grid-template-areas: "num sta" "ctr req" "desc desc" "dlv dlv" "due done" "err err";
+    grid-template-areas: "sel sel" "num sta" "ctr req" "desc desc" "dlv dlv" "due done" "err err";
   }
+  .brow.erow .c-sel { grid-area: sel; display: flex; align-items: center; gap: 8px; }
+  .brow.erow .c-sel .bl { margin: 0; }
+  .brow.erow .c-sel input { margin: 0; }
+  .brow.sel { margin: 0 -8px; padding: 12px 8px; }
+  .epanel { position: static; }
+  .epfields { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .brow.erow .c-status { grid-area: sta; } .brow.erow .c-done { grid-area: done; }
   .brow.erow .c-center { grid-area: ctr; }
   .brow.chg { margin: 0 -8px; padding: 12px 8px; }
@@ -648,14 +673,30 @@ kbd { font-family: var(--font-mono); font-size: .75rem; border: 1px solid var(--
       <p class="help" style="margin-top:6px" id="editScope"></p>
       <p class="help" style="margin-top:4px">Use the arrow keys to move between cells, so you can work down one whole column at a time. Enter moves down, and typing a status or center picks it.</p>
     </div>
-    <div class="eset">
-      <div class="f"><label for="eSetStatus">Set status for every row</label>
-        <select id="eSetStatus"></select></div>
-      <div class="f"><label for="eSetCenter">Set center for every row</label>
-        <select id="eSetCenter"></select></div>
+    <div class="epanel" id="ePanel">
+      <div class="ephead">
+        <label class="check" for="eSelAll"><input type="checkbox" id="eSelAll"> Select all</label>
+        <span class="esel" id="eSelCount" role="status"></span>
+        <span class="eacts" id="eActs" hidden>
+          <button type="button" class="btn" id="pClear">Clear fields</button>
+          <button type="button" class="btn primary" id="pApply">Apply</button>
+        </span>
+      </div>
+      <div class="epbody" id="ePanelBody" hidden>
+        <div class="epfields">
+          <div class="f"><label for="pStatus">Status</label><select id="pStatus"></select></div>
+          <div class="f"><label for="pCenter">Center</label><select id="pCenter"></select></div>
+          <div class="f"><label for="pReq">Requestor</label><input id="pReq" data-suggest autocomplete="off"></div>
+          <div class="f"><label for="pDesc">Description</label><input id="pDesc" autocomplete="off"></div>
+          <div class="f"><label for="pDeliv">Deliverable</label><input id="pDeliv" maxlength="100" autocomplete="off"></div>
+          <div class="f"><label for="pDue">Complete by</label><input type="date" id="pDue"></div>
+          <div class="f"><label for="pDone">Deliverable status</label><select id="pDone"></select></div>
+        </div>
+        <p class="emsg" id="ePanelMsg" role="status"></p>
+      </div>
     </div>
     <div>
-      <div class="bhead ehead" aria-hidden="true"><span>Ticket #</span><span>Status</span><span>Center</span><span>Requestor</span><span>Description</span><span>Deliverable <i>(100 max)</i></span><span>Complete by</span><span>Done</span></div>
+      <div class="bhead ehead" aria-hidden="true"><span></span><span>Ticket #</span><span>Status</span><span>Center</span><span>Requestor</span><span>Description</span><span>Deliverable <i>(100 max)</i></span><span>Complete by</span><span>Done</span></div>
       <div id="editRows"></div>
     </div>
     <div class="bfoot">
@@ -1550,6 +1591,7 @@ kbd { font-family: var(--font-mono); font-size: .75rem; border: 1px solid var(--
   function nmContext(input) {
     var row = input.closest('.brow');
     if (row) return { kind: row.closest('#editRows') ? 'edit' : 'add', row: row };
+    if (input.closest('#ePanel')) return { kind: 'panel' };
     return { kind: 'form' };
   }
   function nmPlace() {
@@ -1577,10 +1619,10 @@ kbd { font-family: var(--font-mono); font-size: .75rem; border: 1px solid var(--
     var menu = nm.menu || (nm.menu = document.createElement('div'));
     menu.className = 'nm-menu';
     menu.setAttribute('role', 'listbox');
-    var form = nmContext(input).kind === 'form';
+    var kind = nmContext(input).kind, form = kind === 'form' || kind === 'panel';
     menu.innerHTML = items.map(function (n, i) {
       return '<div class="nm-item" role="option" data-i="' + i + '">' + esc(n) + '</div>';
-    }).join('') + '<div class="nm-hint">' + (form ? 'Click: next field · Right-click: save button' : 'Click: next cell · Right-click: cell below') + '</div>';
+    }).join('') + '<div class="nm-hint">' + (kind === 'panel' ? 'Click: next field · Right-click: Apply button' : form ? 'Click: next field · Right-click: save button' : 'Click: next cell · Right-click: cell below') + '</div>';
     var host = input.closest('dialog') || document.body;
     if (menu.parentNode !== host) host.appendChild(menu);
     nmPlace();
@@ -1594,6 +1636,7 @@ kbd { font-family: var(--font-mono); font-size: .75rem; border: 1px solid var(--
     nm.picking = false;
     var ctx = nmContext(input);
     nmHide();
+    if (ctx.kind === 'panel') { (dir === 'right' ? $('pDesc') : $('pApply')).focus(); return; }
     if (ctx.kind === 'form') { (dir === 'right' ? $('fStatus') : $('ticketSave')).focus(); return; }
     var container = ctx.kind === 'edit' ? $('editRows') : $('bulkRows');
     var target;
@@ -1631,7 +1674,8 @@ kbd { font-family: var(--font-mono); font-size: .75rem; border: 1px solid var(--
   document.addEventListener('keydown', function (e) {
     if (!nm.input || e.target !== nm.input) return;
     if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); nmHide(); return; }
-    if (nmContext(nm.input).kind !== 'form') return; /* in the grids the arrow keys keep moving between cells */
+    var nk = nmContext(nm.input).kind;
+    if (nk === 'add' || nk === 'edit') return; /* in the grids the arrow keys keep moving between cells */
     if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
       e.preventDefault();
       var n = nm.items.length;
@@ -2101,6 +2145,7 @@ kbd { font-family: var(--font-mono); font-size: .75rem; border: 1px solid var(--
     div.className = 'brow erow';
     div.setAttribute('data-id', t.id);
     div.innerHTML =
+      '<label class="bc c-sel"><span class="bl">Select this row</span><input type="checkbox" data-sel></label>' +
       '<label class="bc c-number"><span class="bl">Ticket #</span><input class="mono" data-col="number" autocomplete="off"></label>' +
       '<label class="bc c-status"><span class="bl">Status</span><select data-col="status">' + statusOpts + '</select></label>' +
       '<label class="bc c-center"><span class="bl">Center</span><select data-col="center">' + centerOpts + '</select></label>' +
@@ -2148,8 +2193,11 @@ kbd { font-family: var(--font-mono); font-size: .75rem; border: 1px solid var(--
       ? 'Editing the ' + list.length + (list.length === 1 ? ' ticket' : ' tickets') + ' you just added. Fill in whatever you have; every field is optional. Only rows you change are updated.'
       : 'Editing the ' + list.length + (list.length === 1 ? ' ticket' : ' tickets') + ' shown now (' + shownLabel() +
       '). Change any cell and save. Only rows you change are updated. To edit everything, go to the All tab with no filters.';
-    $('eSetStatus').innerHTML = '<option value="">Leave as is</option>' + STATUSES.map(function (st) { return '<option value="' + st.id + '">' + st.label + '</option>'; }).join('');
-    $('eSetCenter').innerHTML = '<option value="">Leave as is</option>' + state.centers.map(function (c) { return '<option value="' + c + '">' + c + '</option>'; }).join('');
+    $('pStatus').innerHTML = '<option value="">Leave as is</option>' + STATUSES.map(function (st) { return '<option value="' + st.id + '">' + st.label + '</option>'; }).join('');
+    $('pCenter').innerHTML = '<option value="">Leave as is</option>' + state.centers.map(function (c) { return '<option value="' + c + '">' + c + '</option>'; }).join('');
+    $('pDone').innerHTML = '<option value="">Leave as is</option><option value="complete">Mark complete</option><option value="reopen">Mark not complete</option><option value="remove">Remove the deliverable</option>';
+    clearPanel(); panelMsg(''); lastSel = -1; $('eSelAll').checked = false;
+    updateSelection();
     updateEditSummary();
     edlg.showModal();
     editRowEls().forEach(function (r) { grow(bcell(r, 'description')); grow(bcell(r, 'deliverable')); });
@@ -2183,15 +2231,82 @@ kbd { font-family: var(--font-mono); font-size: .75rem; border: 1px solid var(--
     var next = rows[rows.indexOf(e.target.closest('.brow')) + 1];
     if (next) focusCell(bcell(next, e.target.getAttribute('data-col')));
   });
-  /* Set one value on every row, then drop back to "Leave as is". */
-  ['Status', 'Center'].forEach(function (name) {
-    $('eSet' + name).addEventListener('change', function (e) {
-      var v = e.target.value;
-      if (!v) return;
-      editRowEls().forEach(function (row) { bcell(row, name.toLowerCase()).value = v; });
-      e.target.value = '';
-      updateEditSummary();
+  /* ---- selecting rows and changing them together ---- */
+  var lastSel = -1;
+  function rowSel(row) { return row.querySelector('[data-sel]'); }
+  function selectedRows() { return editRowEls().filter(function (r) { return rowSel(r).checked; }); }
+  function updateSelection() {
+    var rows = editRowEls(), n = selectedRows().length;
+    rows.forEach(function (r) { r.classList.toggle('sel', rowSel(r).checked); });
+    var all = $('eSelAll');
+    all.checked = n > 0 && n === rows.length;
+    all.indeterminate = n > 0 && n < rows.length;
+    $('eSelCount').textContent = n === 0
+      ? 'No rows selected. Tick rows below (Shift-click for a range) to change several at once.'
+      : n + (n === 1 ? ' row selected' : ' rows selected');
+    $('ePanelBody').hidden = n === 0;
+    $('eActs').hidden = n === 0;
+    $('pApply').textContent = 'Apply to ' + n + (n === 1 ? ' row' : ' rows');
+  }
+  function panelMsg(text, kind) {
+    var m = $('ePanelMsg');
+    m.textContent = text || '';
+    m.className = 'emsg' + (kind ? ' ' + kind : '');
+  }
+  function clearPanel() {
+    ['pStatus', 'pCenter', 'pDone'].forEach(function (id) { $(id).value = ''; });
+    ['pReq', 'pDesc', 'pDeliv', 'pDue'].forEach(function (id) { $(id).value = ''; });
+  }
+  $('editRows').addEventListener('click', function (e) {
+    var box = e.target.closest('[data-sel]');
+    if (!box) return;
+    var rows = editRowEls(), i = rows.indexOf(box.closest('.brow'));
+    if (e.shiftKey && lastSel >= 0 && lastSel < rows.length) { /* Shift-click selects everything between the two clicks */
+      var lo = Math.min(i, lastSel), hi = Math.max(i, lastSel);
+      for (var k = lo; k <= hi; k++) rowSel(rows[k]).checked = box.checked;
+    }
+    lastSel = i;
+    updateSelection();
+  });
+  $('eSelAll').addEventListener('change', function (e) {
+    editRowEls().forEach(function (r) { rowSel(r).checked = e.target.checked; });
+    lastSel = -1;
+    updateSelection();
+  });
+  $('pClear').addEventListener('click', function () { clearPanel(); panelMsg(''); });
+  $('pApply').addEventListener('click', function () {
+    var rows = selectedRows();
+    if (!rows.length) return;
+    var v = { status: $('pStatus').value, center: $('pCenter').value, requestor: $('pReq').value.trim(),
+      description: $('pDesc').value.trim(), deliverable: $('pDeliv').value.trim(), due: $('pDue').value, action: $('pDone').value };
+    if (!v.status && !v.center && !v.requestor && !v.description && !v.deliverable && !v.due && !v.action) {
+      panelMsg('Choose at least one thing to change first.', 'err');
+      return;
+    }
+    rows.forEach(function (row) {
+      if (v.status) bcell(row, 'status').value = v.status;
+      if (v.center) bcell(row, 'center').value = v.center;
+      if (v.requestor) bcell(row, 'requestor').value = v.requestor;
+      if (v.description) bcell(row, 'description').value = v.description;
+      if (v.deliverable) bcell(row, 'deliverable').value = v.deliverable;
+      if (v.due) bcell(row, 'due').value = v.due;
+      if (v.action === 'remove') {
+        bcell(row, 'deliverable').value = ''; bcell(row, 'due').value = ''; bcell(row, 'done').checked = false;
+      } else if (v.action && bcell(row, 'deliverable').value.trim()) { /* only rows that have a deliverable can be completed or reopened */
+        bcell(row, 'done').checked = v.action === 'complete';
+      }
+      grow(bcell(row, 'description')); grow(bcell(row, 'deliverable'));
     });
+    var n = updateEditSummary();
+    clearPanel();
+    panelMsg('Applied to ' + rows.length + (rows.length === 1 ? ' row' : ' rows') + '. They are highlighted in the list; click Save changes to keep them.', 'ok');
+  });
+  /* Enter in a panel box applies the change instead of saving the whole form. */
+  $('ePanel').addEventListener('keydown', function (e) {
+    if (e.key === 'Enter' && e.target.tagName === 'INPUT' && e.target.type !== 'checkbox') {
+      e.preventDefault();
+      $('pApply').click();
+    }
   });
 
   $('editForm').addEventListener('submit', function (e) {
