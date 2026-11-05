@@ -407,6 +407,15 @@ kbd { font-family: var(--font-mono); font-size: .75rem; border: 1px solid var(--
 .drow .putback { font-size: .8125rem; padding: 4px 10px; white-space: nowrap; }
 @media (prefers-reduced-motion: no-preference) { .fcard:not(.dragging) { transition: transform .2s ease, opacity .2s ease; } }
 
+/* Requestor suggestions */
+.nm-menu {
+  position: fixed; z-index: 1000; background: var(--surface); border: 1px solid var(--line-strong); border-radius: 10px;
+  box-shadow: var(--shadow); padding: 4px; font-size: .875rem; max-width: calc(100vw - 16px);
+}
+.nm-item { padding: 7px 10px; border-radius: 6px; cursor: pointer; overflow-wrap: anywhere; }
+.nm-item:hover, .nm-item.on { background: var(--surface-2); }
+.nm-hint { padding: 6px 10px 4px; margin-top: 2px; border-top: 1px solid var(--line); color: var(--muted); font-size: .75rem; }
+
 /* Toast */
 .toast {
   position: fixed; left: 50%; transform: translateX(-50%);
@@ -519,7 +528,7 @@ kbd { font-family: var(--font-mono); font-size: .75rem; border: 1px solid var(--
     <div class="two">
       <div class="f">
         <label for="fReq">Requestor</label>
-        <input id="fReq" list="reqNames" autocomplete="off" placeholder="Full name" aria-describedby="eReq">
+        <input id="fReq" data-suggest autocomplete="off" placeholder="Full name" aria-describedby="eReq">
         <p class="err" id="eReq"></p>
       </div>
       <div class="f">
@@ -642,8 +651,6 @@ kbd { font-family: var(--font-mono); font-size: .75rem; border: 1px solid var(--
     </div>
   </form>
 </dialog>
-
-<datalist id="reqNames"></datalist>
 
 <div id="toastHost" aria-live="polite"></div>
 
@@ -790,23 +797,7 @@ kbd { font-family: var(--font-mono); font-size: .75rem; border: 1px solid var(--
   }
 
   /* ---------- render ---------- */
-  /* Names already used as requestors, newest first, offered as suggestions. */
-  function refreshNames() {
-    var seen = {}, out = [];
-    function add(name) {
-      var n = (name || '').trim(), k = n.toLowerCase();
-      if (n && !seen[k]) { seen[k] = true; out.push(n); }
-    }
-    /* names typed into Bulk add rows that are not saved yet */
-    [].slice.call(document.querySelectorAll('#bulkRows [data-col="requestor"]')).forEach(function (el) { add(el.value); });
-    state.tickets.slice()
-      .sort(function (a, b) { return new Date(b.updated) - new Date(a.updated); })
-      .forEach(function (t) { add(t.requestor); });
-    $('reqNames').innerHTML = out.map(function (n) { return '<option value="' + esc(n) + '"></option>'; }).join('');
-  }
-
   function render() {
-    refreshNames();
     renderSummary();
     renderLate();
     renderViews();
@@ -1484,6 +1475,125 @@ kbd { font-family: var(--font-mono); font-size: .75rem; border: 1px solid var(--
     else legacy();
   });
 
+  /* ---------- requestor suggestions ----------
+     Typing in a requestor box lists matching names used before. The text being typed is never offered back.
+     Left-click a name: fill it in and go to the next cell on the right. Right-click: fill it in and go to the cell below. */
+  var nm = { menu: null, input: null, items: [], active: -1, picking: false };
+
+  function nameList(except) {
+    var seen = {}, out = [];
+    function add(name) {
+      var n = (name || '').trim(), k = n.toLowerCase();
+      if (n && !seen[k]) { seen[k] = true; out.push(n); }
+    }
+    /* names typed in other Bulk add rows that are not saved yet */
+    [].slice.call(document.querySelectorAll('#bulkRows [data-col="requestor"]')).forEach(function (el) { if (el !== except) add(el.value); });
+    state.tickets.slice()
+      .sort(function (a, b) { return new Date(b.updated) - new Date(a.updated); })
+      .forEach(function (t) { add(t.requestor); });
+    return out;
+  }
+  function nmContext(input) {
+    var row = input.closest('.brow');
+    if (row) return { kind: row.closest('#editRows') ? 'edit' : 'add', row: row };
+    return { kind: 'form' };
+  }
+  function nmPlace() {
+    if (!nm.menu || !nm.input || !nm.menu.parentNode) return;
+    var r = nm.input.getBoundingClientRect(), st = nm.menu.style;
+    st.left = Math.max(8, r.left) + 'px';
+    st.minWidth = Math.max(r.width, 200) + 'px';
+    st.top = (r.bottom + 2) + 'px';
+    var h = nm.menu.offsetHeight;
+    if (r.bottom + 2 + h > window.innerHeight && r.top - 2 - h > 0) st.top = (r.top - 2 - h) + 'px';
+  }
+  function nmHide() {
+    if (nm.menu && nm.menu.parentNode) nm.menu.parentNode.removeChild(nm.menu);
+    nm.input = null; nm.active = -1; nm.items = [];
+  }
+  function nmShow(input) {
+    var typed = input.value.trim().toLowerCase();
+    if (!typed) { nmHide(); return; }
+    var items = nameList(input).filter(function (n) {
+      var l = n.toLowerCase();
+      return l !== typed && l.indexOf(typed) >= 0;
+    }).slice(0, 8);
+    if (!items.length) { nmHide(); return; }
+    nm.input = input; nm.items = items; nm.active = -1;
+    var menu = nm.menu || (nm.menu = document.createElement('div'));
+    menu.className = 'nm-menu';
+    menu.setAttribute('role', 'listbox');
+    var form = nmContext(input).kind === 'form';
+    menu.innerHTML = items.map(function (n, i) {
+      return '<div class="nm-item" role="option" data-i="' + i + '">' + esc(n) + '</div>';
+    }).join('') + '<div class="nm-hint">' + (form ? 'Click: next field · Right-click: save button' : 'Click: next cell · Right-click: cell below') + '</div>';
+    var host = input.closest('dialog') || document.body;
+    if (menu.parentNode !== host) host.appendChild(menu);
+    nmPlace();
+  }
+  function nmPick(i, dir) {
+    var input = nm.input, name = nm.items[i];
+    if (!input || name === undefined) return;
+    nm.picking = true;
+    input.value = name;
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    nm.picking = false;
+    var ctx = nmContext(input);
+    nmHide();
+    if (ctx.kind === 'form') { (dir === 'right' ? $('fStatus') : $('ticketSave')).focus(); return; }
+    var container = ctx.kind === 'edit' ? $('editRows') : $('bulkRows');
+    var target;
+    if (dir === 'right') {
+      var cells = [].slice.call(ctx.row.querySelectorAll('[data-col]'));
+      target = cells[cells.indexOf(input) + 1];
+    } else {
+      var rows = [].slice.call(container.children).filter(function (c) { return c.classList.contains('brow'); });
+      var next = rows[rows.indexOf(ctx.row) + 1] || (ctx.kind === 'add' ? addBulkRow() : null);
+      target = next && next.querySelector('[data-col="requestor"]');
+    }
+    if (target) focusCell(target); else input.focus();
+  }
+
+  document.addEventListener('input', function (e) {
+    if (nm.picking || !e.target.matches || !e.target.matches('[data-suggest]')) return;
+    nmShow(e.target);
+  });
+  document.addEventListener('focusout', function (e) { if (e.target === nm.input) nmHide(); });
+  /* mousedown must not take focus away from the box, or the list would close before the click lands */
+  document.addEventListener('mousedown', function (e) {
+    var menu = e.target.closest && e.target.closest('.nm-menu');
+    if (!menu) return;
+    e.preventDefault();
+    var item = e.target.closest('.nm-item');
+    if (item && e.button === 0) nmPick(+item.getAttribute('data-i'), 'right');
+  });
+  document.addEventListener('contextmenu', function (e) {
+    var menu = e.target.closest && e.target.closest('.nm-menu');
+    if (!menu) return;
+    e.preventDefault();
+    var item = e.target.closest('.nm-item');
+    if (item) nmPick(+item.getAttribute('data-i'), 'down');
+  });
+  document.addEventListener('keydown', function (e) {
+    if (!nm.input || e.target !== nm.input) return;
+    if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); nmHide(); return; }
+    if (nmContext(nm.input).kind !== 'form') return; /* in the grids the arrow keys keep moving between cells */
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      e.preventDefault();
+      var n = nm.items.length;
+      var idx = nm.active + (e.key === 'ArrowDown' ? 1 : -1);
+      if (idx >= n) idx = -1;
+      if (idx < -1) idx = n - 1;
+      nm.active = idx;
+      [].slice.call(nm.menu.querySelectorAll('.nm-item')).forEach(function (el, i) { el.classList.toggle('on', i === nm.active); });
+    } else if (e.key === 'Enter' && nm.active >= 0) {
+      e.preventDefault();
+      nmPick(nm.active, 'right');
+    }
+  }, true);
+  window.addEventListener('scroll', nmPlace, true);
+  window.addEventListener('resize', nmPlace);
+
   /* ---------- arrow-key movement through the Bulk add / Bulk edit grids ---------- */
   function focusCell(el) {
     el.focus();
@@ -1537,7 +1647,7 @@ kbd { font-family: var(--font-mono); font-size: .75rem; border: 1px solid var(--
     div.innerHTML =
       '<label class="bc c-number"><span class="bl">Ticket #</span><input class="mono" data-col="number" autocomplete="off" placeholder="Ticket #"></label>' +
       '<label class="bc c-center"><span class="bl">Center</span><select data-col="center">' + opts + '</select></label>' +
-      '<label class="bc c-requestor"><span class="bl">Requestor</span><input data-col="requestor" list="reqNames" autocomplete="off" placeholder="Full name"></label>' +
+      '<label class="bc c-requestor"><span class="bl">Requestor</span><input data-col="requestor" data-suggest autocomplete="off" placeholder="Full name"></label>' +
       '<label class="bc c-description"><span class="bl">Description</span><textarea rows="1" data-col="description" placeholder="What is the problem or request?"></textarea></label>' +
       '<label class="bc c-deliverable"><span class="bl">Deliverable (optional, 100 characters max)</span><textarea rows="1" maxlength="100" data-col="deliverable" placeholder="Optional"></textarea></label>' +
       '<label class="bc c-due"><span class="bl">Complete by</span><input type="date" data-col="due"></label>' +
@@ -1648,7 +1758,6 @@ kbd { font-family: var(--font-mono); font-size: .75rem; border: 1px solid var(--
 
   $('bulkRows').addEventListener('input', function (e) {
     grow(e.target);
-    if (e.target.getAttribute('data-col') === 'requestor') refreshNames();
     var row = e.target.closest('.brow');
     if (row && row.classList.contains('bad')) {
       e.target.removeAttribute('aria-invalid');
@@ -1774,7 +1883,7 @@ kbd { font-family: var(--font-mono); font-size: .75rem; border: 1px solid var(--
       '<label class="bc c-number"><span class="bl">Ticket #</span><input class="mono" data-col="number" autocomplete="off"></label>' +
       '<label class="bc c-status"><span class="bl">Status</span><select data-col="status">' + statusOpts + '</select></label>' +
       '<label class="bc c-center"><span class="bl">Center</span><select data-col="center">' + centerOpts + '</select></label>' +
-      '<label class="bc c-requestor"><span class="bl">Requestor</span><input data-col="requestor" list="reqNames" autocomplete="off"></label>' +
+      '<label class="bc c-requestor"><span class="bl">Requestor</span><input data-col="requestor" data-suggest autocomplete="off"></label>' +
       '<label class="bc c-description"><span class="bl">Description</span><textarea rows="1" data-col="description"></textarea></label>' +
       '<label class="bc c-deliverable"><span class="bl">Deliverable (100 characters max)</span><textarea rows="1" maxlength="100" data-col="deliverable" placeholder="None"></textarea></label>' +
       '<label class="bc c-due"><span class="bl">Complete by</span><input type="date" data-col="due"></label>' +
