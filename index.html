@@ -325,6 +325,10 @@ dialog::backdrop { background: rgba(8, 12, 20, .55); }
 }
 .bsum { font-size: .875rem; color: var(--muted); font-variant-numeric: tabular-nums; }
 .bsum.err { color: var(--danger); font-weight: 600; }
+.bsaved { display: block; font-size: .75rem; color: var(--muted); }
+.bsaved:empty { display: none; }
+.draftnote { margin-top: 6px; padding: 6px 10px; border-radius: 8px; background: var(--s-open-bg); color: var(--s-open-fg); }
+.draftnote.help { color: var(--s-open-fg); }
 @media (max-width: 64rem) {
   .bhead { display: none; }
   .brow {
@@ -549,6 +553,7 @@ kbd { font-family: var(--font-mono); font-size: .75rem; border: 1px solid var(--
     <div>
       <h2 id="bulkTitle">Bulk add tickets</h2>
       <p class="help" style="margin-top:6px">Fill in the rows, or copy rows from a spreadsheet and paste them into any cell. Column order: Ticket #, Center, Requestor, Description, Deliverable, Complete by. Only the ticket number is required; everything else can be left blank. Empty rows are skipped. Use the arrow keys to move between cells, so you can fill one whole column at a time. Enter moves down, and typing a center code picks it.</p>
+      <p class="help draftnote" id="bDraftNote" hidden></p>
     </div>
     <div class="f bstatus">
       <label for="bStatus">Status for every ticket in this batch</label>
@@ -564,9 +569,12 @@ kbd { font-family: var(--font-mono); font-size: .75rem; border: 1px solid var(--
       <button class="btn" type="button" id="bClear">Clear all</button>
     </div>
     <div class="bfoot">
-      <span class="bsum" id="bSummary" role="status"></span>
+      <div>
+        <span class="bsum" id="bSummary" role="status"></span>
+        <span class="bsaved" id="bSaved"></span>
+      </div>
       <div class="foot" style="margin:0">
-        <button class="btn" type="button" id="bCancel">Cancel</button>
+        <button class="btn" type="button" id="bCancel">Close</button>
         <button class="btn primary" type="submit" id="bSave">Add tickets</button>
       </div>
     </div>
@@ -1697,6 +1705,30 @@ kbd { font-family: var(--font-mono); font-size: .75rem; border: 1px solid var(--
     updateBulkSummary();
   }
 
+  /* The draft: everything in the grid is saved on every edit, and comes back the next time Bulk add opens. */
+  var DRAFT_KEY = 'ticketboard.bulkdraft.v1';
+  function readDraft() {
+    try {
+      var d = JSON.parse(localStorage.getItem(DRAFT_KEY) || 'null');
+      return d && Array.isArray(d.rows) && d.rows.length ? d : null;
+    } catch (err) { return null; }
+  }
+  function clearDraft() {
+    try { localStorage.removeItem(DRAFT_KEY); } catch (err) { /* storage may be blocked */ }
+    $('bSaved').textContent = '';
+  }
+  function saveDraft() {
+    var rows = bulkRowEls().map(function (r) { return BCOLS.map(function (c) { return bcell(r, c).value; }); });
+    while (rows.length && rows[rows.length - 1].every(function (v) { return !v.trim(); })) rows.pop();
+    if (!rows.length) { clearDraft(); return; }
+    try {
+      localStorage.setItem(DRAFT_KEY, JSON.stringify({ v: 1, savedAt: new Date().toISOString(), status: $('bStatus').value, rows: rows }));
+      $('bSaved').textContent = 'Draft saved ' + new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+    } catch (err) {
+      $('bSaved').textContent = 'This browser is not letting the draft be saved';
+    }
+  }
+
   function updateBulkSummary() {
     var n = bulkRowEls().filter(function (r) { return !rowEmpty(r); }).length;
     var sum = $('bSummary');
@@ -1704,6 +1736,7 @@ kbd { font-family: var(--font-mono); font-size: .75rem; border: 1px solid var(--
     sum.textContent = n === 0 ? 'Nothing to add yet' : n + (n === 1 ? ' ticket ready' : ' tickets ready');
     $('bSave').textContent = n > 1 ? 'Add ' + n + ' tickets' : 'Add ticket';
     $('bSave').disabled = n === 0;
+    saveDraft();
   }
 
   /* Check every non-empty row. Returns the rows to add, or null after marking what is wrong. */
@@ -1745,15 +1778,31 @@ kbd { font-family: var(--font-mono); font-size: .75rem; border: 1px solid var(--
   }
 
   function openBulk() {
-    resetBulk(5);
+    var d = readDraft();
+    resetBulk(Math.max(5, d ? d.rows.length : 0));
+    var note = $('bDraftNote');
+    note.hidden = true;
+    if (d) {
+      var els = bulkRowEls();
+      d.rows.forEach(function (vals, i) {
+        BCOLS.forEach(function (c, ci) { if (vals[ci]) setCell(els[i], c, String(vals[ci])); });
+      });
+      if (STATUS_BY_ID[d.status]) $('bStatus').value = d.status;
+      updateBulkSummary();
+      var when = d.savedAt ? new Date(d.savedAt).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : 'earlier';
+      note.textContent = 'Restored your draft from ' + when + '. It saves itself as you type. Clear all starts over.';
+      note.hidden = false;
+    }
     bdlg.showModal();
+    bulkRowEls().forEach(function (r) { grow(bcell(r, 'description')); grow(bcell(r, 'deliverable')); });
     bcell(bulkRowEls()[0], 'number').focus();
   }
+  $('bStatus').addEventListener('change', saveDraft);
 
   $('bulkBtn').addEventListener('click', openBulk);
   $('bAddRow').addEventListener('click', function () { var r = addBulkRow(); bcell(r, 'number').focus(); });
   $('bAddFive').addEventListener('click', function () { var r = addBulkRow(); for (var i = 0; i < 4; i++) addBulkRow(); bcell(r, 'number').focus(); });
-  $('bClear').addEventListener('click', function () { resetBulk(5); bcell(bulkRowEls()[0], 'number').focus(); });
+  $('bClear').addEventListener('click', function () { $('bDraftNote').hidden = true; resetBulk(5); bcell(bulkRowEls()[0], 'number').focus(); });
   $('bCancel').addEventListener('click', function () { bdlg.close(); });
 
   $('bulkRows').addEventListener('input', function (e) {
@@ -1810,6 +1859,7 @@ kbd { font-family: var(--font-mono); font-size: .75rem; border: 1px solid var(--
     var rows = validateBulk();
     if (!rows) return;
     if (!rows.length) { updateBulkSummary(); return; }
+    clearDraft();
     var status = $('bStatus').value;
     var snap = snapshot();
     var base = Date.now();
