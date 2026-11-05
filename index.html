@@ -481,7 +481,7 @@ dialog::backdrop { background: rgba(8, 12, 20, .55); }
     <div class="two">
       <div class="f">
         <label for="fReq">Requestor</label>
-        <input id="fReq" autocomplete="off" placeholder="Full name" aria-describedby="eReq">
+        <input id="fReq" list="reqNames" autocomplete="off" placeholder="Full name" aria-describedby="eReq">
         <p class="err" id="eReq"></p>
       </div>
       <div class="f">
@@ -586,6 +586,8 @@ dialog::backdrop { background: rgba(8, 12, 20, .55); }
     </div>
   </form>
 </dialog>
+
+<datalist id="reqNames"></datalist>
 
 <div id="toastHost" aria-live="polite"></div>
 
@@ -760,7 +762,23 @@ dialog::backdrop { background: rgba(8, 12, 20, .55); }
   }
 
   /* ---------- render ---------- */
+  /* Names already used as requestors (not from example tickets), newest first, offered as suggestions. */
+  function refreshNames() {
+    var seen = {}, out = [];
+    function add(name) {
+      var n = (name || '').trim(), k = n.toLowerCase();
+      if (n && !seen[k]) { seen[k] = true; out.push(n); }
+    }
+    /* names typed into Bulk add rows that are not saved yet */
+    [].slice.call(document.querySelectorAll('#bulkRows [data-col="requestor"]')).forEach(function (el) { add(el.value); });
+    state.tickets.filter(function (t) { return !t.sample; })
+      .sort(function (a, b) { return new Date(b.updated) - new Date(a.updated); })
+      .forEach(function (t) { add(t.requestor); });
+    $('reqNames').innerHTML = out.map(function (n) { return '<option value="' + esc(n) + '"></option>'; }).join('');
+  }
+
   function render() {
+    refreshNames();
     renderSummary();
     renderLate();
     renderBanner();
@@ -1194,7 +1212,7 @@ dialog::backdrop { background: rgba(8, 12, 20, .55); }
     div.innerHTML =
       '<label class="bc c-number"><span class="bl">Ticket #</span><input class="mono" data-col="number" autocomplete="off" placeholder="INC0004131"></label>' +
       '<label class="bc c-center"><span class="bl">Center</span><select data-col="center">' + opts + '</select></label>' +
-      '<label class="bc c-requestor"><span class="bl">Requestor</span><input data-col="requestor" autocomplete="off" placeholder="Full name"></label>' +
+      '<label class="bc c-requestor"><span class="bl">Requestor</span><input data-col="requestor" list="reqNames" autocomplete="off" placeholder="Full name"></label>' +
       '<label class="bc c-description"><span class="bl">Description</span><textarea rows="1" data-col="description" placeholder="What is the problem or request?"></textarea></label>' +
       '<label class="bc c-deliverable"><span class="bl">Deliverable (optional, 100 characters max)</span><textarea rows="1" maxlength="100" data-col="deliverable" placeholder="Optional"></textarea></label>' +
       '<label class="bc c-due"><span class="bl">Complete by</span><input type="date" data-col="due"></label>' +
@@ -1305,6 +1323,7 @@ dialog::backdrop { background: rgba(8, 12, 20, .55); }
 
   $('bulkRows').addEventListener('input', function (e) {
     grow(e.target);
+    if (e.target.getAttribute('data-col') === 'requestor') refreshNames();
     var row = e.target.closest('.brow');
     if (row && row.classList.contains('bad')) {
       e.target.removeAttribute('aria-invalid');
@@ -1427,7 +1446,7 @@ dialog::backdrop { background: rgba(8, 12, 20, .55); }
       '<label class="bc c-number"><span class="bl">Ticket #</span><input class="mono" data-col="number" autocomplete="off"></label>' +
       '<label class="bc c-status"><span class="bl">Status</span><select data-col="status">' + statusOpts + '</select></label>' +
       '<label class="bc c-center"><span class="bl">Center</span><select data-col="center">' + centerOpts + '</select></label>' +
-      '<label class="bc c-requestor"><span class="bl">Requestor</span><input data-col="requestor" autocomplete="off"></label>' +
+      '<label class="bc c-requestor"><span class="bl">Requestor</span><input data-col="requestor" list="reqNames" autocomplete="off"></label>' +
       '<label class="bc c-description"><span class="bl">Description</span><textarea rows="1" data-col="description"></textarea></label>' +
       '<label class="bc c-deliverable"><span class="bl">Deliverable (100 characters max)</span><textarea rows="1" maxlength="100" data-col="deliverable" placeholder="None"></textarea></label>' +
       '<label class="bc c-due"><span class="bl">Complete by</span><input type="date" data-col="due"></label>' +
